@@ -653,7 +653,8 @@ const API = 'https://script.google.com/macros/s/AKfycbySUZQS3ZkAQpwK806avtfEzLR4
 const APP = 'https://cook814444-bot.github.io/g4/';
 const GAS = typeof google !== 'undefined' && !!google.script;
 function load() {
-  if (!GAS) { fetch(API + '?op=svcjson', {cache: 'no-store'}).then(x => x.json()).then(got, () => { $('st').textContent = '인터넷 연결을 확인해 주세요 (다시 시도 중)'; }); return; }
+  // 11-26 받은 자료(암호화된 그대로)를 폰에 남겨 둠 → 다음에 앱 켤 때 구글 기다리지 않고 바로 그림
+  if (!GAS) { fetch(API + '?op=svcjson', {cache: 'no-store'}).then(x => x.json()).then(r => { try { localStorage.setItem('g4svc_last', JSON.stringify(r)); } catch (e) {} return got(r); }, () => { $('st').textContent = '인터넷 연결을 확인해 주세요 (다시 시도 중)'; }); return; }
   google.script.run.withSuccessHandler(got).withFailureHandler(() => { $('st').textContent = '인터넷 연결을 확인해 주세요 (다시 시도 중)'; }).svcData();
 }
 async function got(r) {
@@ -667,6 +668,7 @@ async function got(r) {
       if (r.data) c.push(await open_(r.data));
       if (r.cloud) c.push(await open2_(r.cloud.data));
       c.sort((x, y) => (+!!y.ok - +!!x.ok) || (x.at < y.at ? 1 : x.at > y.at ? -1 : 0));
+      if (DATA && DATA.at > c[0].at) return;   // 남겨 둔 옛 자료가 새 자료보다 늦게 풀려도 덮어쓰지 않게
       DATA = c[0]; lastAt = sig; render();
     }
     catch (e) { $('st').textContent = '주소가 잘못되었습니다 (관리소에서 받은 주소 그대로 열어 주세요)'; }
@@ -707,6 +709,7 @@ const start = h => {
   if (m) { KEY = m[1]; try { localStorage.setItem('g4svc_k', KEY); } catch (e) {} }
   else { try { KEY = localStorage.getItem('g4svc_k') || ''; HASH = KEY ? 'k=' + KEY : ''; } catch (e) {} }
   if (!KEY) { $('st').textContent = '관리소에서 받은 주소(끝에 #k=… 가 붙은 주소)로 열어 주세요'; return; }
+  if (!GAS) { try { const c = localStorage.getItem('g4svc_last'); if (c) got(JSON.parse(c)); } catch (e) {} }
   load();
   setInterval(load, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
