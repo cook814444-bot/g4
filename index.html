@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가경4 잔손 현황</title>
+<!-- 11-26 휴대폰 앱(GitHub Pages)용: 홈 화면 설치 정보. 관리소 PC·구글 웹 앱에서는 그냥 무시됨 -->
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#1f6fb2"><link rel="apple-touch-icon" href="icon-192.png">
+<!-- 2026-11-25: 코넥스 서비스 접수대장을 휴대폰·직원 PC에서 보는 화면. 공용 기록 웹 앱(doGet)이 이 파일을 그대로 보여 줌
+     service_watch.ps1이 'svcpage'로 올림 → 고친 뒤엔 그 스크립트가 다음 확인 때 알아서 다시 올림
+     자료는 암호문으로 받고, 열쇠는 주소 # 뒤 k= (서버로 가지 않음) -->
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1d2329;--sub:#5b636c;--line:#e3e7ec;--acc:#1f6fb2;--accbg:#e6f0fb;--red:#c0392b;--redbg:#fdeeec;--org:#b86e00;--orgbg:#fff4e2;--chip:#eef1f4}
+@media (prefers-color-scheme:dark){:root{--bg:#15181c;--card:#1e2227;--ink:#e8ebee;--sub:#9aa3ad;--line:#30363d;--acc:#6fb0ee;--accbg:#1c2d3f;--red:#f07b6e;--redbg:#3a2220;--org:#f0b45a;--orgbg:#3a2e1a;--chip:#2a2f35}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;font-size:16px;-webkit-text-size-adjust:100%}
+.wrap{max-width:1100px;margin:0 auto;padding:14px 16px 40px}
+h1{font-size:22px;margin:4px 0 2px}
+h1 .n{color:var(--acc)}
+.top{display:flex;align-items:center;gap:12px}
+.golink{font-size:14px;font-weight:700;text-decoration:none;color:var(--acc);background:var(--accbg);border-radius:999px;padding:5px 12px;white-space:nowrap}
+.golink:hover{background:var(--acc);color:#fff}
+.golink[hidden]{display:none}
+.st{font-size:14px;color:var(--sub);margin-bottom:10px}
+.st.old{color:var(--red);font-weight:700}
+.bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.bar input{flex:1 1 160px;min-width:0;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+.bar button{font:inherit;font-size:15px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);cursor:pointer}
+.bar button.on{background:var(--accbg);color:var(--acc);border-color:var(--acc);font-weight:700}
+/* 2026-11-25 사용자 '보기 불편' → 카드 대신 동별 묶음 안에 한 줄에 한 건 (휴대폰은 두 줄) */
+.grp{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.gh{font-size:15px;font-weight:800;padding:7px 12px;background:var(--chip)}
+/* 11-26 사용자 '표가 직관적이지 않음' → 오른쪽 '이름 · 날짜 · 이름'이 누가 누군지 몰랐음.
+   이제: 호 | 위치 꼬리표 | 내용(아래 줄에 '신청 ○○ · 접수 ○○') | 며칠 됐는지 (오늘·어제·N일 전, 오래될수록 진하게) */
+.gh{display:flex;align-items:center;gap:8px}
+.gh .gn{font-size:13px;font-weight:800;color:var(--red);background:var(--redbg);border-radius:999px;padding:1px 9px}
+.r{display:grid;grid-template-columns:72px 64px 1fr;gap:12px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
+.gh+.r{border-top:0}
+.r .u{font-size:17px;font-weight:800;white-space:nowrap}
+.r .loc{justify-self:start;font-size:12.5px;font-weight:700;color:var(--sub);background:var(--chip);border-radius:6px;padding:2px 8px;white-space:nowrap}
+.r .txt{line-height:1.45;word-break:keep-all;overflow-wrap:anywhere;font-size:16px}
+.r .txt a{color:var(--acc);font-weight:700}
+.r .who{display:block;font-size:12.5px;color:var(--sub);margin-top:2px}
+.r .when{font-size:13px;font-weight:800;white-space:nowrap;text-align:center;border-radius:999px;padding:3px 10px;background:var(--chip);color:var(--sub);min-width:64px}
+.r .when.d0{background:var(--orgbg);color:var(--org)}
+.r .when.late{background:var(--redbg);color:var(--red)}
+.r .when small{display:block;font-size:11px;font-weight:600;opacity:.8}
+.r .stt{display:inline-block;font-size:12px;font-weight:700;color:var(--acc);background:var(--accbg);border-radius:6px;padding:0 6px;margin-left:6px}
+.leg{font-size:13px;color:var(--sub);margin:-4px 2px 10px}
+#map{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:12px;padding:6px 6px 4px;text-align:center;overflow:hidden}
+#map svg{width:100%;max-width:560px;height:auto;display:block;margin:0 auto}
+#map .dg{cursor:pointer}
+#map .dg:hover .wall{filter:brightness(1.06)}
+#map .tag text{font-size:11px;font-weight:800}
+#map .hint{font-size:12.5px;color:var(--sub);margin:2px 0 2px}
+/* 11-25 진짜 3D (three.js) — 건물 이름표는 글자가 또렷하게 HTML로 위에 띄움 */
+#m3{position:relative;height:500px;touch-action:none}
+#m3 canvas{display:block;width:100%;height:100%;border-radius:8px}
+#m3 .m3l{position:absolute;left:0;top:0;transform:translate(-50%,-100%);padding:2px 9px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap;cursor:pointer;
+  background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:0 1px 4px rgba(0,0,0,.15);user-select:none}
+#m3 .m3l.has{background:var(--red);color:#fff;border-color:var(--red)}
+#m3 .m3l.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+#m3 .m3l b{display:inline-block;min-width:18px;margin-left:5px;padding:0 5px;border-radius:999px;background:#fff;color:var(--red);font-size:12px;text-align:center}
+#m3 .m3l.on b{color:var(--acc)}
+#m3 .m3l:not(.has):not(.on):not(.of){opacity:.8;font-size:11px;padding:1px 7px;font-weight:700}
+#m3 .m3l.has{font-size:13px;padding:3px 5px 3px 10px;box-shadow:0 2px 8px rgba(192,57,43,.35)}
+#m3 .rs{position:absolute;right:8px;top:8px;font:inherit;font-size:13px;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--sub);cursor:pointer;z-index:2000}
+#m3 .rs[hidden]{display:none}
+/* 11-26 지도 아래 동 단추 줄: 어느 동에 몇 건인지 한눈에, 눌러서 거르기 */
+.dch{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0 2px}
+.dch button{font:inherit;font-size:14px;font-weight:700;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--sub);cursor:pointer}
+.dch button.has{background:var(--redbg);color:var(--red);border-color:var(--red)}
+.dch button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.dch button b{margin-left:4px}
+#m3 .m3l.of{background:var(--orgbg);color:var(--org);border-color:var(--org);font-size:11px;cursor:default}
+@media (max-width:640px){#m3{height:360px}}
+.leg i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--org);margin-right:4px;vertical-align:middle}
+@media (max-width:640px){
+  .r{grid-template-columns:auto auto 1fr;gap:4px 8px;padding:9px 12px}
+  .r .txt{grid-column:1/-1;order:5}
+  .r .when{min-width:0;padding:2px 9px;justify-self:end;grid-column:4}
+  .r .when small{display:inline;margin-left:4px}
+  /* 11-25 휴대폰에서 오른쪽이 잘리던 것: 글자가 길면 줄을 바꾸고, 버튼 줄은 넘치면 다음 줄로 */
+  .r>*{min-width:0}
+  .bar input{flex-basis:100%}
+}
+.msg{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;line-height:1.6}
+.msg.err{background:var(--redbg);border-color:var(--red)}
+#qr{text-align:center}
+#qr img{width:220px;height:220px;image-rendering:pixelated;background:#fff;padding:8px;border-radius:8px}
+</style></head><body><div class="wrap">
+<div class="top">
+<!-- 관리소 PC(로컬로 열 때)만 보임 · 휴대폰·직원 웹 앱에는 시작 화면이 없음. 년간 업무·행정처럼 제목 왼쪽 -->
+<a class="golink" id="goback" hidden href="file:///C:/Users/user/가경4/가경4 시작.html" onclick="location.replace(this.href);return false">🏠 처음 화면</a>
+<h1>🔧 잔손 현황 <span class="n" id="cnt"></span></h1></div>
+<div class="st" id="st">불러오는 중…</div>
+<!-- 2026-11-25 사용자 '지도에 동마다 잔손 몇 개 뜨게, 직관적으로' → 카카오맵 배치대로 직접 그린 단지 그림 (지도 그림 자체는 안 씀) -->
+<div id="map"></div>
+<div class="dch" id="dch"></div>
+<div class="bar">
+  <input id="q" type="search" placeholder="동·호·내용 찾기 (예: 405 404)" autocomplete="off">
+  <button id="s1" class="on">동·호순</button><button id="s2">접수순</button><button id="qb">📱</button>
+</div>
+<div id="qr" hidden></div>
+<div id="list"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let KEY = '', HASH = '', URL0 = '', DATA = null, SORT = 'u', lastAt = '';
+const enc = new TextEncoder();
+const fromB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const hexBytes = h => new Uint8Array(h.match(/../g).map(x => parseInt(x, 16)));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// service_watch.ps1의 Seal과 같은 방식: 열쇠(hex) → SHA-256으로 암호화·위조확인 열쇠, 내용 = IV(16)+암호문+HMAC(32)
+async function open_(b64) {
+  const all = fromB64(b64), iv = all.slice(0, 16), mac = all.slice(-32), ct = all.slice(16, -32);
+  const ek = await crypto.subtle.digest('SHA-256', enc.encode('g4svc-enc:' + KEY));
+  const mk = await crypto.subtle.digest('SHA-256', enc.encode('g4svc-mac:' + KEY));
+  const hk = await crypto.subtle.importKey('raw', mk, {name: 'HMAC', hash: 'SHA-256'}, false, ['verify']);
+  const body = new Uint8Array([...enc.encode('svc'), ...iv, ...ct]);
+  if (!await crypto.subtle.verify('HMAC', hk, mac, body)) throw new Error('열쇠가 맞지 않음');
+  const ak = await crypto.subtle.importKey('raw', ek, {name: 'AES-CBC'}, false, ['decrypt']);
+  return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name: 'AES-CBC', iv}, ak, ct)));
+}
+
+// v7(2026-11-25): 구글이 직접 읽은 것(cloud)은 앱스크립트에 AES가 없어 HMAC-SHA256 카운터 방식 — 공용기록 스크립트 seal2_와 짝
+async function open2_(b64) {
+  const all = fromB64(b64), nonce = all.slice(0, 16), mac = all.slice(-32), ct = all.slice(16, -32);
+  const ek = await crypto.subtle.digest('SHA-256', enc.encode('g4svc-enc:' + KEY));
+  const mk = await crypto.subtle.digest('SHA-256', enc.encode('g4svc-mac:' + KEY));
+  const hk = await crypto.subtle.importKey('raw', mk, {name: 'HMAC', hash: 'SHA-256'}, false, ['verify']);
+  if (!await crypto.subtle.verify('HMAC', hk, mac, new Uint8Array([...enc.encode('svc2'), ...nonce, ...ct]))) throw new Error('열쇠가 맞지 않음');
+  const sk = await crypto.subtle.importKey('raw', ek, {name: 'HMAC', hash: 'SHA-256'}, false, ['sign']);
+  const pt = new Uint8Array(ct.length);
+  for (let i = 0; i * 32 < ct.length; i++) {
+    const blk = new Uint8Array(await crypto.subtle.sign('HMAC', sk, new Uint8Array([...nonce, (i >>> 24) & 255, (i >>> 16) & 255, (i >>> 8) & 255, i & 255])));
+    for (let j = 0; j < 32 && i * 32 + j < ct.length; j++) pt[i * 32 + j] = ct[i * 32 + j] ^ blk[j];
+  }
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+function ago(s) {
+  const t = new Date(s.replace(' ', 'T') + '+09:00'), m = Math.round((Date.now() - t) / 60000);
+  return {m, txt: m < 1 ? '방금' : m < 60 ? m + '분 전' : Math.floor(m / 60) + '시간 ' + (m % 60) + '분 전'};
+}
+// 내용 속 전화번호는 눌러서 걸 수 있게
+const tel = s => esc(s).replace(/(0\d{1,2})[-. ]?(\d{3,4})[-. ]?(\d{4})/g, (m, a, b, c) => '<a href="tel:' + a + b + c + '">' + m + '</a>');
+
+// 단지 입체 그림 (2026-11-25 사용자 '3D 느낌, 거의 측면으로', '그림 퀄리티는 높게')
+// 건물 자리·길이·기울기는 카카오맵(대림로 459)의 실제 건물 윤곽을 보고 딴 값 (단위: 지도 화면 픽셀, 아래가 남쪽)
+// [중심x, 중심y, 길이, 기울기(도, 오른쪽이 올라가면 -)] · 깊이는 모두 같음 · 높이는 층수(403동 13층, 나머지 15층)
+const BLD = {405: [210, 163, 80, -35], 406: [136, 215, 78, -35], 404: [272, 252, 74, -40], 403: [204, 305, 78, -37], 407: [88, 352, 52, 15],
+  408: [86, 480, 52, 13], 402: [205, 513, 78, -40], 409: [106, 598, 52, 15.5], 401: [262, 609, 80, -42], 410: [188, 707, 52, 13]};   // 11-25 스카이뷰 확대로 다시 잼: 407·408·409동은 단지 곡선 따라 가파르게 비스듬 · 11-26 406동은 405동과 한 줄(같은 축)로 (사용자) · 11-26 409동은 큰길을 침범해 서쪽으로 12 옮김 · 408동은 서쪽 옹벽 밖으로 나가 있어 북동쪽으로 옮김 (옹벽·큰길 사이 가운데)
+const FLOORS = {403: 13};
+// 11-26 407~410동은 긴 판이 아니라 'ㅗ'자 탑상형 (카카오 일반지도 건물 윤곽): 앞줄 4세대(65.7·56.0·56.0·65.7㎡)는 남쪽을 보고, 뒤에 날개 2칸
+// 동마다 기울기가 조금씩 다름 (BLD 4번째 값, 오른쪽이 내려가면 +) · 칸 = [u1, u2, v1, v2] 카카오 지도 픽셀, u 앞줄 따라 동쪽 · v 남쪽 · 지도 좌표 = 0.495배
+const TOWER = {407: 1, 408: 1, 409: 1, 410: 1};
+const TOWER_UNITS = [[-52, -26, 0, 38], [-26, -1, 0, 50], [-1, 25, 0, 52], [25, 52, 0, 44], [-30, 8, -26, 0], [8, 52, -34, 0]];
+function towerBoxes(cx, cz, ang) {   // → [중심x, 중심z, 가로(앞줄 방향), 깊이] 지도 좌표
+  const k = 0.495, uc = 4.7, vc = 9.9, a = ang * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  return TOWER_UNITS.map(([u1, u2, v1, v2]) => {
+    const u = ((u1 + u2) / 2 - uc) * k, v = ((v1 + v2) / 2 - vc) * k;
+    return [cx + u * c - v * s, cz + u * s + v * c, (u2 - u1) * k, (v2 - v1) * k];
+  });
+}
+const OFFICE = [176, 429, 22, -40];   // 관리사무소: 407·408동 사이 높이, 큰길 동쪽 · 402동 쪽 주차장에 살짝 걸침 (11-25 사용자)
+// 11-26 사용자가 스카이뷰에 빨간 선으로 그려 준 단지 경계: 학교는 빼고, 403동 남쪽 → 운동장 서쪽 → 운동장 남쪽 길·상가 감싸 동쪽 큰길까지
+const SITE = [[222, 120], [300, 150], [339, 279], [182, 366], [314, 552], [342, 561], [389, 513], [441, 485], [446, 513], [408, 589], [390, 645], [342, 703], [304, 741], [216, 761], [123, 734], [66, 651], [37, 433], [65, 288], [95, 197]];
+const SCHOOL = [[339, 279], [420, 250], [460, 480], [441, 485], [389, 513], [342, 561], [314, 552], [182, 366]];   // 단지 경계에 빈틈없이 붙임
+let DONG = '';
+// 남쪽에서 비스듬히 내려다본 모습: 깊이(y)는 눌러서 측면에 가깝게, 높이(z)는 위로
+const P = (x, y, z = 0) => [+(x + y * 0.22).toFixed(1), +(y * 0.5 - z).toFixed(1)];
+const pts = a => a.map(p => P(...p).join(',')).join(' ');
+const DARK = matchMedia('(prefers-color-scheme: dark)').matches;
+const PAL = DARK
+  ? {ground: '#23302a', groundLine: '#3b4d42', school: '#22303d', schoolLine: '#38506a', wall: [216, 18, 70], roof: '#8d97a3', shadow: 'rgba(0,0,0,.35)', red: [6, 70, 62], blue: [210, 70, 62], text: '#e8ebee', line: 'rgba(0,0,0,.28)'}
+  : {ground: '#e5eedc', groundLine: '#c9d8bd', school: '#e3edf6', schoolLine: '#bccfe2', wall: [38, 22, 93], roof: '#c9c2b5', shadow: 'rgba(60,50,30,.16)', red: [6, 75, 90], blue: [210, 80, 90], text: '#1d2329', line: 'rgba(60,50,30,.18)'};
+// 해는 왼쪽 위(북서)에서 → 벽 방향에 따라 밝기를 달리해 입체감
+function shade(hsl, nx, ny) {
+  const k = Math.max(0, -nx * 0.55 + ny * 0.85);   // 남·동을 향한 벽일수록 밝게
+  return 'hsl(' + hsl[0] + ',' + hsl[1] + '%,' + Math.round(hsl[2] - 22 + k * 22) + '%)';
+}
+function hull(p) {   // 볼록 껍질 (그림자 모양)
+  p = p.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], up = [];
+  for (const q of p) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of p.slice().reverse()) { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+function corners(cx, cy, L, ang, D) {
+  const a = ang * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux;
+  return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([s, t]) => [cx + ux * L / 2 * s + nx * D / 2 * t, cy + uy * L / 2 * s + ny * D / 2 * t]);
+}
+// 건물 하나: 그림자 → 벽(뒤에서 앞으로) → 층 줄 → 지붕
+function slab(c, H, col, roofCol) {
+  const sh = c.map(([x, y]) => [x + H * 0.55, y + H * 0.25]);   // 그림자는 남동쪽 땅에
+  let s = '<polygon points="' + pts(hull(c.concat(sh))) + '" fill="' + PAL.shadow + '"/>';
+  const walls = c.map((p, i) => { const q = c[(i + 1) % 4], ex = q[0] - p[0], ey = q[1] - p[1], len = Math.hypot(ex, ey); return {p, q, nx: ey / len, ny: -ex / len, my: (p[1] + q[1]) / 2}; })
+    .filter(w => w.ny > -0.15).sort((a, b) => a.my - b.my);   // 남쪽(보는 쪽)을 향한 벽만
+  for (const w of walls) {
+    s += '<polygon class="wall" points="' + pts([[...w.p, 0], [...w.q, 0], [...w.q, H], [...w.p, H]]) + '" fill="' + shade(col, w.nx, w.ny) + '"/>';
+    for (let f = 1; f < H / 3.2; f++) { const z = f * 3.2; const a = P(...w.p, z), b = P(...w.q, z); s += '<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '" stroke="' + PAL.line + '" stroke-width=".5"/>'; }
+  }
+  return s + '<polygon points="' + pts(c.map(([x, y]) => [x, y, H])) + '" fill="' + roofCol + '" stroke="' + PAL.line + '" stroke-width=".6"/>';
+}
+function tag(x, y, text, bg, fg) {
+  const w = text.length * 6.6 + 12;
+  return '<g class="tag"><rect x="' + (x - w / 2) + '" y="' + (y - 11) + '" width="' + w + '" height="17" rx="8.5" fill="' + bg + '"/><text x="' + x + '" y="' + (y + 2) + '" text-anchor="middle" fill="' + fg + '">' + text + '</text></g>';
+}
+function drawMap(rows) {
+  const n = {}; rows.forEach(r => { n[r.dong] = (n[r.dong] || 0) + 1; });
+  let s = '<svg viewBox="70 0 480 400" role="img" aria-label="가경4 단지 입체 그림 · 동별 잔손">'
+    + '<polygon points="' + pts(SITE) + '" fill="' + PAL.ground + '" stroke="' + PAL.groundLine + '" stroke-width="1.5" stroke-linejoin="round"/>'
+    + '<polygon points="' + pts(SCHOOL) + '" fill="' + PAL.school + '" stroke="' + PAL.schoolLine + '" stroke-dasharray="4 3"/>';
+  const sc = P(300, 440); s += '<text x="' + sc[0] + '" y="' + sc[1] + '" text-anchor="middle" font-size="11" fill="' + PAL.text + '" opacity=".55">죽림초</text>';
+  const items = Object.keys(BLD).map(d => ({d, b: BLD[d]})).concat([{d: 'office', b: OFFICE}]).sort((a, b) => a.b[1] - b.b[1]);
+  const labels = [];
+  for (const it of items) {
+    const [cx, cy, L, ang] = it.b;
+    if (it.d === 'office') {
+      s += '<g>' + slab(corners(cx, cy, L, ang, 14), 7, [30, 85, DARK ? 55 : 80], DARK ? '#b9772a' : '#e8a54b') + '</g>';
+      const t = P(cx, cy, 7); labels.push(tag(t[0], t[1] - 9, '관리사무소', DARK ? '#3a2e1a' : '#fff4e2', DARK ? '#f0b45a' : '#b86e00'));
+      continue;
+    }
+    const c = n[it.d] || 0, on = DONG === it.d, H = (FLOORS[it.d] || 15) * 3.2;
+    const col = on ? PAL.blue : c ? PAL.red : PAL.wall, roof = on ? (DARK ? '#3d6d99' : '#a9c8e8') : c ? (DARK ? '#9a4a42' : '#e7aaa2') : PAL.roof;
+    s += '<g class="dg" data-d="' + it.d + '">' + (TOWER[it.d] ? towerBoxes(cx, cy, ang).sort((p, q) => p[1] - q[1]).map(([x, y, w, dp]) => slab(corners(x, y, w, ang, dp), H, col, roof)).join('') : slab(corners(cx, cy, L, ang, 20), H, col, roof)) + '</g>';
+    const t = P(cx, cy, H);
+    labels.push('<g class="dg" data-d="' + it.d + '">' + tag(t[0], t[1] - 10, it.d + (c ? ' · 잔손 ' + c : ''), on ? (DARK ? '#6fb0ee' : '#1f6fb2') : c ? (DARK ? '#f07b6e' : '#c0392b') : (DARK ? '#2a2f35' : '#ffffff'), c || on ? '#fff' : PAL.text) + '</g>');
+  }
+  // 이름표는 건물 위에 맨 나중에 (뒤 건물 이름이 앞 건물에 가리지 않게)
+  s += labels.join('');
+  const r = P(30, 700); s += '<text x="' + (r[0] - 6) + '" y="' + r[1] + '" font-size="10.5" fill="' + PAL.text + '" opacity=".55">← 2순환로</text>';
+  $('map').innerHTML = s + '</svg><div class="hint">' + (DONG ? DONG + '동만 보는 중 · 다시 누르면 전체' : '동을 누르면 그 동 잔손만 보입니다 · 빨간 동 = 잔손 있음') + '</div>';
+}
+$('dch').onclick = e => { const b = e.target.closest('button'); if (!b) return; DONG = b.dataset.d; render(); };
+$('map').onclick = e => { if (e.target.closest('#m3')) return; const g = e.target.closest('.dg'); if (!g) { if (DONG) { DONG = ''; render(); } return; } DONG = DONG === g.dataset.d ? '' : g.dataset.d; render(); };
+
+// ── 진짜 3D (three.js r128) ── 같은 BLD·SITE·SCHOOL 자리를 씀. 1 = 지도 1픽셀(약 0.7m), 한 층 3.2
+let M3 = null;
+function map3d(rows) {
+  if (!window.THREE || !THREE.OrbitControls) return false;
+  if (!M3) { try { M3 = init3d(); } catch (e) { console.log('3D 실패', e); M3 = false; } }
+  if (!M3) return false;
+  const n = {}; rows.forEach(r => { n[r.dong] = (n[r.dong] || 0) + 1; });
+  // 11-26 잔손 있는 동은 또렷한 빨강, 없는 동은 연회색 / 한 동 고르면 나머지는 더 흐리게
+  for (const d in M3.b) {
+    const b = M3.b[d], c = n[d] || 0, on = DONG === d;
+    b.mats.forEach(m => m.color.set(on ? '#7fb2ea' : DONG ? (c ? '#e9c9c4' : '#d9dce0') : c ? '#ff8f80' : '#e4e6e9').convertSRGBToLinear());
+    b.caps.forEach(m => { m.material = on ? M3.capOn : c && !DONG ? M3.capHas : M3.capNo; });
+    b.lab.className = 'm3l' + (on ? ' on' : c ? ' has' : '');
+    b.lab.innerHTML = d + '동' + (c ? '<b>' + c + '</b>' : '');
+  }
+  $('m3hint').textContent = DONG ? DONG + '동만 보는 중 · 빈 곳을 누르면 전체' : '빨간 동 = 잔손 있음 · 동을 누르면 그 동만 · 끌어서 돌리기';
+  M3.rs.hidden = !M3.moved;
+  M3.dirty = true;
+  return true;
+}
+function init3d() {
+  const T = THREE, X0 = 190, Z0 = 420, FL = 5.4;   // 11-26 지도 1칸 ≈ 0.5m (카카오 20m 축척) → 한 층 2.7m = 5.4칸 (전엔 3.2라 건물이 눌려 뚱뚱해 보임)
+  const col = h => new T.Color(h).convertSRGBToLinear();   // 색은 눈에 보이는 그대로 (sRGB 출력이라 바꿔 줘야 하얗게 날아가지 않음)
+  $('map').innerHTML = '<div id="m3"><canvas></canvas></div><div class="hint" id="m3hint"></div>';
+  const box = $('m3'), cv = box.querySelector('canvas');
+  const rd = new T.WebGLRenderer({canvas: cv, antialias: true, alpha: true});
+  rd.setPixelRatio(Math.min(devicePixelRatio, 2));
+  rd.shadowMap.enabled = true; rd.shadowMap.type = T.PCFSoftShadowMap;
+  rd.outputEncoding = T.sRGBEncoding;
+  const sc = new T.Scene();
+  sc.fog = new T.Fog(DARK ? 0x1e2227 : 0xffffff, 1050, 2200);   // 바닥 끝이 카드 배경에 스며들게
+  const cam = new T.PerspectiveCamera(30, 1, 5, 4000);
+  // 11-26 더 위에서 내려다보게 (뒤 동이 앞 동에 가려 이름표가 겹치던 것) + 단지가 카드를 채우게
+  cam.position.set(10, 800, 622);
+  const ctl = new T.OrbitControls(cam, cv);
+  ctl.target.set(0, 0, 2); ctl.enableDamping = true; ctl.dampingFactor = 0.12; ctl.enablePan = false;
+  ctl.minDistance = 260; ctl.maxDistance = 1150; ctl.minPolarAngle = 0.35; ctl.maxPolarAngle = 1.32;
+  if (/[?&]top/.test(location.search)) { ctl.minPolarAngle = 0; ctl.maxDistance = 2000; cam.position.set(0, 1050, 1); ctl.target.set(0, 0, 0); box.style.height = '900px'; }   // 점검용: 바로 위에서 (스카이뷰와 비교)
+  // 빛: 하늘빛 + 남서쪽 해 (남쪽 벽이 밝게, 그림자는 북동쪽)
+  sc.add(new T.HemisphereLight(0xffffff, DARK ? 0x445544 : 0xc8d2bd, DARK ? 0.5 : 0.62));
+  const sun = new T.DirectionalLight(0xfff4e6, DARK ? 0.65 : 0.8);
+  sun.position.set(-180, 320, 260); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048); sun.shadow.radius = 4; sun.shadow.bias = -0.0005;
+  Object.assign(sun.shadow.camera, {left: -380, right: 380, top: 380, bottom: -380, near: 10, far: 1200});
+  sc.add(sun);
+  const flat = (pts, color, y) => {
+    const s = new T.Shape(pts.map(([x, z]) => new T.Vector2(x - X0, -(z - Z0))));
+    const m = new T.Mesh(new T.ShapeGeometry(s), new T.MeshStandardMaterial({color: col(color), roughness: 1}));
+    m.rotation.x = -Math.PI / 2; m.position.y = y; m.receiveShadow = true; sc.add(m); return m;
+  };
+  // 바닥: 주변 → 단지 → 죽림초
+  const base = new T.Mesh(new T.PlaneGeometry(9000, 9000), new T.MeshStandardMaterial({color: col(DARK ? 0x2a2e33 : 0xe2e0d8), roughness: 1}));
+  base.rotation.x = -Math.PI / 2; base.receiveShadow = true; sc.add(base);
+  flat(SITE, DARK ? 0x2f4034 : 0xc9dcb6, 0.3);
+  flat(SCHOOL, DARK ? 0x323a42 : 0xcfd7de, 0.4);   // 11-26 학교 땅 = 사용자 경계 바깥 (SCHOOL)   // 학교 땅: 건물·운동장 둘레만 작게, 흰색 말고 차분한 회청색 (11-25 사용자 '하얀 게 과하게 크다')
+  // 죽림초 건물·운동장
+  // 11-26 스카이뷰: 학교가 403~401동 동쪽을 다 채움 — 파란 지붕 체육관 + 초록 지붕 붉은 벽돌 교사 + 큰 흙 운동장
+  const schoolBox = (x, z, L, W, H, ang, roof) => {
+    const b = new T.Mesh(new T.BoxGeometry(L, H, W), new T.MeshStandardMaterial({color: col(DARK ? 0x7a4a3e : 0xb76a50), roughness: .9}));
+    b.position.set(x - X0, H / 2, z - Z0); b.rotation.y = -ang * Math.PI / 180; b.castShadow = b.receiveShadow = true; sc.add(b);
+    const r = new T.Mesh(new T.BoxGeometry(L + .6, .6, W + .6), new T.MeshStandardMaterial({color: col(roof), roughness: .7}));
+    r.position.set(x - X0, H + .3, z - Z0); r.rotation.y = b.rotation.y; r.castShadow = true; sc.add(r);
+  };
+  schoolBox(340, 322, 50, 38, 14, -35, 0x3f7fc4);   // 체육관
+  schoolBox(300, 400, 110, 18, 12, -35, 0x6fbf8a);  // 교사
+  flat([[280, 481], [392, 416], [440, 499], [328, 564]], DARK ? 0x5a4a38 : 0xd9c29b, 0.5);   // 운동장
+  // 창문 무늬 (벽마다 칸 수를 길이에 맞춤)
+  // 외벽 (11-25 로드뷰): 크림색 벽 + 황갈색 띠 + 발코니 난간, 옆벽엔 큰 동 번호
+  const wallTex = (cols, floors, num) => {
+    const c = document.createElement('canvas'); c.width = cols * 32; c.height = floors * 32 + 24;
+    const g = c.getContext('2d'); g.fillStyle = '#f2ece1'; g.fillRect(0, 0, c.width, c.height);
+    for (let k = 0; k < cols; k++) {
+      const accent = num ? k === Math.floor(cols / 2) : k % 4 === 1;
+      if (accent) { g.fillStyle = '#d8a777'; g.fillRect(k * 32 + 3, 0, 26, c.height - 24); }
+      for (let f = 0; f < floors; f++) {
+        const y = f * 32;
+        g.fillStyle = '#7f98ad'; g.fillRect(k * 32 + 6, y + 7, 20, 14);                 // 창
+        g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(k * 32 + 6, y + 7, 9, 14);    // 유리 반사
+        if (!num) { g.fillStyle = '#cfc7ba'; g.fillRect(k * 32 + 2, y + 22, 28, 3); g.fillStyle = '#e8e2d8'; for (let x = 4; x < 30; x += 4) g.fillRect(k * 32 + x, y + 17, 1, 5); }   // 난간
+      }
+    }
+    if (num) { g.fillStyle = '#9b8f80'; g.font = 'bold ' + Math.round(c.width * .28) + 'px sans-serif'; g.textAlign = 'center'; g.fillText(num, c.width / 2, c.width * .38); }
+    g.fillStyle = '#d6cdbf'; g.fillRect(0, c.height - 24, c.width, 24);                 // 1층 기단
+    const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = 4; return t;
+  };  const roofMat = new T.MeshStandardMaterial({color: col(DARK ? 0x5d6268 : 0x6f7276), roughness: .9});
+  const capMat = new T.MeshStandardMaterial({color: col(DARK ? 0x7a4636 : 0xa4553c), roughness: .8});   // 지붕 위 띠: 잔손 있는 동만 빨강 (11-26 전엔 모든 동이 적갈색이라 다 빨개 보였음)
+  const capNo = new T.MeshStandardMaterial({color: col(DARK ? 0x6a6e74 : 0x9aa0a6), roughness: .8}), capOn = new T.MeshStandardMaterial({color: col(0x2f78c4), roughness: .8});
+  const pick = [], b = {};
+  const addBox = (cx, cz, L, ang, D, H, mats) => {
+    const m = new T.Mesh(new T.BoxGeometry(L, H, D), mats);
+    m.position.set(cx - X0, H / 2, cz - Z0); m.rotation.y = -ang * Math.PI / 180;
+    m.castShadow = m.receiveShadow = true; sc.add(m); return m;
+  };
+  for (const d in BLD) {
+    const [cx, cz, L, ang] = BLD[d], fl = FLOORS[d] || 15, H = fl * FL + 2, D = 13;   // 11-26 판상형 깊이: 카카오 지도 윤곽 약 6.5m
+    const mk = (cols, num) => new T.MeshStandardMaterial({map: wallTex(cols, fl, num), roughness: .8});
+    if (TOWER[d]) {   // 탑상형: 세대 칸마다 상자 (앞=남쪽 면에 발코니), 옆벽 한 곳에만 동 번호
+      const all = [], caps = [];
+      towerBoxes(cx, cz, ang).forEach(([x, z, w, dp], i) => {
+        const fr = mk(Math.max(2, Math.round(w / 7))), bk = mk(Math.max(2, Math.round(w / 7))), sd = mk(Math.max(2, Math.round(dp / 7)), i === 0 ? d : ''), sd2 = mk(Math.max(2, Math.round(dp / 7)));
+        const m = addBox(x, z, w, ang, dp, H, [sd2, sd, roofMat, roofMat, fr, bk]); m.userData.d = d; pick.push(m); all.push(fr, bk, sd, sd2);
+        const top = new T.Mesh(new T.BoxGeometry(w * .8, 2, dp * .8), capMat); top.position.set(x - X0, H + 1.5, z - Z0); top.rotation.y = m.rotation.y; top.castShadow = true; sc.add(top); caps.push(top);
+      });
+      const lab = document.createElement('div'); lab.className = 'm3l'; lab.dataset.d = d; box.appendChild(lab);
+      b[d] = {mats: all, caps, lab, at: new T.Vector3(cx - X0, H + 9, cz - Z0)};
+      continue;
+    }
+    const long = mk(Math.round(L / 8)), long2 = mk(Math.round(L / 8)), side = mk(3, d), side2 = mk(3, d);
+    const mats = [side, side2, roofMat, roofMat, long, long2];   // +x, -x, 위, 아래, +z(남), -z(북)
+    const m = addBox(cx, cz, L, ang, D, H, mats); m.userData.d = d; pick.push(m);
+    // 옥상 구조물 (계단실)
+    const top = new T.Mesh(new T.BoxGeometry(L * .9, 3, 6), capMat); top.position.set(cx - X0, H + 2, cz - Z0); top.rotation.y = m.rotation.y; top.castShadow = true; sc.add(top);
+    const lab = document.createElement('div'); lab.className = 'm3l'; lab.dataset.d = d; box.appendChild(lab);
+    b[d] = {mats: [long, long2, side, side2], caps: [top], lab, at: new T.Vector3(cx - X0, H + 9, cz - Z0)};
+  }
+  // 관리사무소 (낮은 건물, 주황 지붕)
+  const [ox, oz, oL, oa] = OFFICE;
+  const om = new T.MeshStandardMaterial({color: col(DARK ? 0xc9a27a : 0xf3eadc), roughness: .85}), orf = new T.MeshStandardMaterial({color: col(0xe39a45), roughness: .7});
+  addBox(ox, oz, oL, oa, 16, 9, [om, om, orf, orf, om, om]);
+  const olab = document.createElement('div'); olab.className = 'm3l of'; olab.textContent = '관리사무소'; box.appendChild(olab);
+  const oat = new T.Vector3(ox - X0, 16, oz - Z0);
+  // ── 단지 바닥·시설 (2026-11-25 로드뷰로 단지를 사방 돌려 보고 다시) ──
+  // 주차장: 동 사이를 채우는 큰 네모. 가운데 노란 선 통로, 양옆 하얀 직각 주차 칸, 줄 사이 연석 화단 섬(나무)
+  // 큰길: 2차로 노란 중앙선 + 붉은 벽돌 무늬 보도 + 가로수 + 노란 줄무늬 과속방지턱
+  // 시설: 406동 서쪽 지하주차장 입구(초록 반투명 지붕), 경비실, 놀이터, 정자, 분리수거장, 서쪽 돌 옹벽·흰 울타리·나무 줄
+  const ASPH = DARK ? '#464b52' : '#7f858c';   // 11-26 스카이뷰 아스팔트처럼 진하게 (연회색이면 잔디와 구분 안 됨)
+  const asphMat = new T.MeshStandardMaterial({color: col(ASPH), roughness: .95, side: T.DoubleSide});
+  const brickMat = new T.MeshStandardMaterial({color: col(DARK ? 0x6b4a40 : 0xc58a70), roughness: 1, side: T.DoubleSide});
+  const curbMat = new T.MeshStandardMaterial({color: col(DARK ? 0x6c6f73 : 0xd9d6cf), roughness: .9});
+  const greenMat = new T.MeshStandardMaterial({color: col(DARK ? 0x35503c : 0x8fbf72), roughness: 1});
+  const yellowMat = new T.MeshStandardMaterial({color: col(0xf0c419), roughness: .8, side: T.DoubleSide});
+  const whiteMat = new T.MeshStandardMaterial({color: col(DARK ? 0xbfc3c8 : 0xffffff), roughness: .8, side: T.DoubleSide});
+  const cars = [];
+  // 나무 (화단·가로수): 하나의 InstancedMesh로 가볍게
+  const treeAt = [];
+  const tree = (x, z, s = 1) => treeAt.push([x, z, s]);
+  // 땅 위 판 (y로 겹침 순서)
+  const plane = (cx, cz, L, W, ang, y, mat) => {
+    const m = new T.Mesh(new T.PlaneGeometry(L, W), mat);
+    m.rotation.order = 'YXZ'; m.rotation.y = -ang * Math.PI / 180; m.rotation.x = -Math.PI / 2;
+    m.position.set(cx - X0, y, cz - Z0); m.receiveShadow = true; sc.add(m); return m;
+  };
+  const block = (cx, cz, L, W, H, ang, y0, mat, cast = true) => {
+    const m = new T.Mesh(new T.BoxGeometry(L, H, W), mat);
+    m.rotation.y = -ang * Math.PI / 180; m.position.set(cx - X0, y0 + H / 2, cz - Z0); m.castShadow = cast; m.receiveShadow = true; sc.add(m); return m;
+  };
+  // 주차 칸 무늬: 칸 깊이 5.4 · 너비 2.6, 흰 줄 (긴 변 방향으로 칸이 늘어섬)
+  const stallTex = (L, depth) => {
+    const k = 10, c = document.createElement('canvas'); c.width = Math.round(L * k); c.height = Math.round(depth * k);
+    const g = c.getContext('2d'); g.fillStyle = ASPH; g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = DARK ? 'rgba(235,235,235,.7)' : '#ffffff';
+    for (let x = 0; x <= c.width; x += 2.6 * k) g.fillRect(x - 1, 0, 2.2, c.height);
+    const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = 8; return t;
+  };
+  // 주차장 하나: 중심·길이·폭·방향. 폭이 넓으면 통로 2개 + 가운데 등 맞댄 두 줄(사이 화단 섬)
+  const lotEdges = [];
+  const lot = (cx, cz, L, W, ang, plain) => {   // plain: 스카이뷰처럼 [칸·통로·칸] 1~2묶음만, 화단 띠 없음
+    const a = ang * Math.PI / 180, ux = Math.cos(a), uz = Math.sin(a), nx = -uz, nz = ux;
+    const P = (s, q) => [cx + ux * s + nx * q, cz + uz * s + nz * q];
+    plane(cx, cz, L + 1, W + 1, ang, 0.42, curbMat);                                        // 연석 테두리
+    plane(cx, cz, L, W, ang, 0.46, asphMat);
+    const rows = [];   // [가로 위치(q), 종류] 종류: s=주차칸, a=통로, i=화단 섬
+    {   // 11-26: 폭만큼 [칸·통로·칸] 묶음을 되풀이해 꽉 채움, 묶음 사이엔 화단 섬
+      const gap = plain ? 0 : 2.6, n = plain ? (W >= 37 ? 2 : 1) : Math.max(1, Math.floor((W + 2.6) / (18.3 + 2.6))), used = n * 18.3 + (n - 1) * gap;
+      let q = -W / 2 + (W - used) / 2;
+      for (let m = 0; m < n; m++) {
+        for (const [w, k] of (m && gap ? [[gap, 'i']] : []).concat([[5.4, 's'], [7.5, 'a'], [5.4, 's']])) { rows.push([q + w / 2, k, w]); q += w; }
+      }
+    }
+    const sL = L - 8;
+    for (const [q, k, w] of rows) {
+      const [x, z] = P(0, q);
+      if (k === 's') plane(x, z, sL, w, ang, 0.5, new T.MeshStandardMaterial({map: stallTex(sL, w), roughness: .95}));
+      if (k === 'a') { plane(x, z, sL, 0.35, ang, 0.52, yellowMat); lotEdges.push([P(-L / 2, q), P(L / 2, q)]); }   // 통로 노란 선 · 통로 양끝 = 진입로 후보
+      if (k === 'i') { block(x, z, sL, w, 0.5, ang, 0.4, curbMat, false); plane(x, z, sL - 1, w - .8, ang, 0.92, greenMat); for (let s = -sL / 2 + 5; s < sL / 2 - 3; s += 11) { const [tx, tz] = P(s, q); tree(tx, tz, .8); } }
+    }
+    // 바깥 가장자리 화단 띠 + 나무 (건물 쪽)
+    for (const sd of [-1, 1]) { const [x, z] = P(0, sd * (W / 2 + 1.8)); plane(x, z, L, 2.6, ang, 0.44, greenMat); }
+  };
+  // 동 사이 주차장들 (로드뷰·지도로 확인한 자리)
+  // 11-26: 로드뷰처럼 마주 보는 두 동의 현관 앞 보도 사이를 꽉 채움 (폭 = 동 사이 거리 - 건물·보도)
+  lot(206, 234, 168, 78, -36);    // 405·406동 ↔ 403·404동 사이 (가장 큰 주차장)
+  // 나머지는 11-26 스카이뷰(tools\가경4_스카이뷰_2026-11-26.jpg, 860×1310)를 그대로 따라 그림 — 네모 틀 없이 실제 모양
+  // 좌표는 스카이뷰 픽셀. sk()가 지도 좌표로 바꿈: 동 10개로 맞춘 변환 + 가까운 동의 실제 자리로 보정
+  const SKY = {405: [375, 89], 406: [246, 201], 404: [495, 272], 403: [348, 390], 407: [120, 450], 408: [104, 719], 402: [332, 812], 409: [190, 965], 401: [470, 995], 410: [333, 1190]};
+  const skyFit = (x, y) => [.4965 * (x - 301.3) + .00755 * (y - 608.3) + 175.7, -.00755 * (x - 301.3) + .4965 * (y - 608.3) + 420.1];
+  const sk = ([x, y]) => {
+    const [gx, gz] = skyFit(x, y); let wx = 0, wz = 0, ws = 0;
+    for (const d in SKY) { const [fx, fz] = skyFit(...SKY[d]), w = 1 / ((fx - gx) ** 2 + (fz - gz) ** 2 + 100); wx += w * (BLD[d][0] - fx); wz += w * (BLD[d][1] - fz); ws += w; }
+    return [gx + wx / ws, gz + wz / ws];
+  };
+  // 주차장 하나: 아스팔트 다각형 + 주차칸 줄(선분, 칸 깊이 5.4) + 둥근 화단
+  // SKY는 지붕 자리인데 스카이뷰는 비스듬히 찍혀 지붕이 땅 자리보다 남쪽으로 약 45px 밀려 보임 → 땅에서 딴 점도 같은 만큼 밀어야 동과 안 겹침
+  const plot = (poly, rows, isl = []) => {
+    const gr = ([x, y]) => sk([x, y + 45]);
+    if (poly) flat(poly.map(gr), ASPH, 0.46);
+    for (const [a, b] of rows) {
+      const [x1, z1] = gr(a), [x2, z2] = gr(b), L = Math.hypot(x2 - x1, z2 - z1), ang = Math.atan2(z2 - z1, x2 - x1) * 180 / Math.PI;
+      plane((x1 + x2) / 2, (z1 + z2) / 2, L, 5.4, ang, 0.5, new T.MeshStandardMaterial({map: stallTex(L, 5.4), roughness: .95}));
+    }
+    for (const c of isl) {
+      const [x, z] = gr(c), m = new T.Mesh(new T.CylinderGeometry(5, 5, 0.5, 24), curbMat); m.position.set(x - X0, 0.7, z - Z0); sc.add(m);
+      const g = new T.Mesh(new T.CircleGeometry(4.4, 24), greenMat); g.rotation.x = -Math.PI / 2; g.position.set(x - X0, 0.97, z - Z0); sc.add(g); tree(x, z, 1.1);
+    }
+  };
+  // 11-26 (2차): 스카이뷰에 20px 격자를 깔고 차·흰 칸 줄이 실제로 보이는 자리를 따라 다시 땀 — 동 사이 빈 땅은 거의 다 주차장
+  // 11-26 (4차): 사용자 "403~404 마주 보는 큰 주차장 말고는 지상주차장 다 없애자" → 동 사이 주차장은 위 큰 것 하나만
+  // 동 현관 앞 보도 (주차장 쪽)
+  for (const d in BLD) { const [cx, cz, L, ang] = BLD[d], a = ang * Math.PI / 180, nx = -Math.sin(a), nz = Math.cos(a); if (TOWER[d]) { plane(cx + nx * 24, cz + nz * 24, L + 4, 4, ang, 0.47, brickMat); continue; } plane(cx + nx * 9, cz + nz * 9, L + 2, 4, ang, 0.47, brickMat); plane(cx - nx * 9, cz - nz * 9, L + 2, 4, ang, 0.47, brickMat); }
+  // 큰길: 곡선을 따라 띠를 깖
+  const curveOf = pts => new T.CatmullRomCurve3(pts.map(([x, z]) => new T.Vector3(x - X0, 0, z - Z0)), false, 'centripetal');
+  const strip = (cv, off, w, y, mat) => {
+    const len = cv.getLength(), n = Math.max(16, Math.round(len / 2)), pos = [], idx = [];
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, p = cv.getPointAt(t), d = cv.getTangentAt(t), nx = -d.z, nz = d.x;
+      pos.push(p.x + nx * (off - w / 2), y, p.z + nz * (off - w / 2), p.x + nx * (off + w / 2), y, p.z + nz * (off + w / 2));
+      if (i) idx.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
+    }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const m = new T.Mesh(g, mat); m.receiveShadow = true; sc.add(m);
+  };
+  const road = (pts, w, full) => {
+    const cv = curveOf(pts);
+    strip(cv, 0, w, 0.45, asphMat);
+    for (const t of [0, 1]) { const p = cv.getPointAt(t), cc = new T.Mesh(new T.CircleGeometry(w / 2, 20), asphMat); cc.rotation.x = -Math.PI / 2; cc.position.set(p.x, 0.44, p.z); sc.add(cc); }
+    if (full) {
+      strip(cv, 0, 0.45, 0.5, yellowMat);                                                  // 노란 중앙선
+      for (const sd of [-1, 1]) { strip(cv, sd * (w / 2 + 0.4), 0.8, 0.55, curbMat); strip(cv, sd * (w / 2 + 2.6), 3.6, 0.5, brickMat); }   // 연석 + 붉은 벽돌 보도
+      const len = cv.getLength();
+      for (let s = 10; s < len - 5; s += 16) { const t = s / len, p = cv.getPointAt(t), d = cv.getTangentAt(t); for (const sd of [-1, 1]) treeAt.push([p.x - d.z * sd * (w / 2 + 2.6) + X0, p.z + d.x * sd * (w / 2 + 2.6) + Z0, .9]); }   // 가로수
+      for (const t of [0.22, 0.5, 0.78]) {   // 노란 줄무늬 과속방지턱
+        const p = cv.getPointAt(t), d = cv.getTangentAt(t), ang = Math.atan2(d.z, d.x) * 180 / Math.PI;
+        for (let k = -2; k <= 2; k++) { const m = new T.Mesh(new T.PlaneGeometry(0.9, w), k % 2 ? whiteMat : yellowMat); m.rotation.order = 'YXZ'; m.rotation.y = -ang * Math.PI / 180; m.rotation.x = -Math.PI / 2; m.position.set(p.x + d.x * k, 0.56, p.z + d.z * k); sc.add(m); }
+      }
+    }
+    return cv;
+  };
+  const spine = road([[330, 690], [262, 668], [200, 632], [152, 600], [141, 550], [133, 515], [130, 473], [135, 423], [141, 395], [150, 346], [150, 301]], 9, true);   // 11-26 끝은 큰 주차장 서쪽 통로 입구에서 멈춤 (주차장 안까지 들어가 겹치던 것)
+  const exitR = road([[262, 668], [322, 640], [384, 605]], 9, true);
+  // (11-26 삭제: 주차장 통로 끝 → 큰길 자동 연결선. 엉뚱한 회색 줄만 생겼음)
+  // ── 시설 ──
+  const brick = new T.MeshStandardMaterial({color: col(0xa8573f), roughness: .9}), brownRoof = new T.MeshStandardMaterial({color: col(0x6d4a33), roughness: .8});
+  {   // 경비실 (큰길 옆 작은 벽돌집, 갈색 지붕)
+    const g = block(160, 566, 6, 5, 4, -48, 0.5, brick);
+    const r = new T.Mesh(new T.ConeGeometry(5.2, 2.2, 4), brownRoof); r.position.set(160 - X0, 5.6, 566 - Z0); r.rotation.y = Math.PI / 4 + 48 * Math.PI / 180; r.castShadow = true; sc.add(r);
+  }
+  {   // 분리수거장 (초록 지붕 창고 + 앞에 통) — 402·401동 사이 (11-26 사용자: 놀이터 아님) · 408·409동 사이 (11-26 사용자 캡처)
+    const binM = new T.MeshStandardMaterial({color: col(0x5fa046), roughness: .7}), binY = new T.MeshStandardMaterial({color: col(0xe8c22e), roughness: .7});
+    const padM = new T.MeshStandardMaterial({color: col(0x9a9fa5), roughness: 1}), wallM = new T.MeshStandardMaterial({color: col(0xe5e1d8), roughness: .9}), roofM = new T.MeshStandardMaterial({color: col(0x5fa046), roughness: .6});
+    const recyc = (cx, cz, ang, front) => {   // front: 통이 놓이는 쪽 (+1/-1, 창고 기준 수직 방향)
+      const a = ang * Math.PI / 180, nx = -Math.sin(a) * front, nz = Math.cos(a) * front;
+      plane(cx + nx * 1.5, cz + nz * 1.5, 18, 10, ang, 0.55, padM);
+      block(cx - nx * 2, cz - nz * 2, 14, 4, 3, ang, 0.6, wallM);
+      block(cx - nx * 2, cz - nz * 2, 15, 5, 0.4, ang, 3.6, roofM);
+      for (let k = 0; k < 5; k++) { const s = (k - 2) * 2.6; block(cx + Math.cos(a) * s + nx * 2.5, cz + Math.sin(a) * s + nz * 2.5, 2, 1.6, 1.5, ang, 0.6, k % 2 ? binY : binM); }
+    };
+    recyc(178, 592, -42, 1);
+    recyc(90, 546, -49, -1);   // 408·409동 사이 가운데 (옹벽과 큰길 중간, 11-26 사용자 캡처 빨간 점)
+  }
+  {   // 분리수거장 (초록 통들) — 402동 모퉁이, 407·408동 서쪽
+    const binM = new T.MeshStandardMaterial({color: col(0x5fa046), roughness: .7}), binY = new T.MeshStandardMaterial({color: col(0xe8c22e), roughness: .7});
+    for (let k = 0; k < 4; k++) block(166 + k * 2.2, 534 + k * 1.6, 2, 1.6, 1.5, -48, 0.5, k % 2 ? binY : binM);
+    for (let k = 0; k < 4; k++) block(46 + k * 2, 470 - k * 2.2, 2, 1.6, 1.5, -50, 0.5, k % 2 ? binY : binM);
+    block(50, 450, 5, 5, 0.3, -50, 3.2, brownRoof); for (const [dx, dz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) block(50 + dx, 450 + dz, 0.4, 0.4, 3, 0, 0.6, brownRoof);   // 정자
+  }
+  {   // 406동 서쪽 끝 지하주차장 입구 (초록 반투명 지붕)
+    const [cx, cz, L, ang] = BLD['406'], a = ang * Math.PI / 180, ux = Math.cos(a), uz = Math.sin(a);
+    const ex = cx - ux * (L / 2 + 14), ez = cz - uz * (L / 2 + 14);
+    plane(ex, ez, 26, 7, ang, 0.5, new T.MeshStandardMaterial({color: col(0x55595f), roughness: .9}));
+    const roof = block(ex, ez, 26, 8, 0.4, ang, 3.4, new T.MeshStandardMaterial({color: col(0x6fbfa3), transparent: true, opacity: .75, roughness: .3}));
+    roof.rotation.order = 'YXZ';
+    block(ex, ez + 0, 26, 0.6, 3.4, ang, 0.5, curbMat);
+  }
+  // ── 11-26 로드뷰 북쪽 확인분 (405·406·403·404·407 북쪽, 2015-06 사진) ──
+  {   // 자전거 보관대: 동 현관 옆 반원 지붕 (405 남쪽 면·403 북쪽 면 = 로드뷰 #8·#10, 주황 / 404 쪽 초록 = #3)
+    const shed = (cx, cz, L, ang, color) => {
+      const m = new T.MeshStandardMaterial({color: col(color), roughness: .5, side: T.DoubleSide});
+      const r = new T.Mesh(new T.CylinderGeometry(1.8, 1.8, L, 16, 1, true, 0, Math.PI), m);
+      r.rotation.order = 'YXZ'; r.rotation.y = -ang * Math.PI / 180; r.rotation.z = Math.PI / 2; r.rotation.x = 0;
+      r.position.set(cx - X0, 1.2, cz - Z0); r.castShadow = true; sc.add(r);
+      plane(cx, cz, L, 3.6, ang, 0.5, curbMat);
+    };
+    const nearFace = (d, s, side, gap) => { const [cx, cz, L, ang] = BLD[d], a = ang * Math.PI / 180; return [cx + Math.cos(a) * s * L / 2 - Math.sin(a) * side * gap, cz + Math.sin(a) * s * L / 2 + Math.cos(a) * side * gap, ang]; };
+    { const [x, z, a] = nearFace('405', -0.45, 1, 16); shed(x, z, 12, a, 0xe0703a); }
+    { const [x, z, a] = nearFace('403', 0.2, -1, 16); shed(x, z, 12, a, 0xe0703a); }
+    { const [x, z, a] = nearFace('404', -0.3, -1, 16); shed(x, z, 10, a, 0x6fbfa3); shed(x + 14 * Math.cos(a * Math.PI / 180), z + 14 * Math.sin(a * Math.PI / 180), 10, a, 0x6fbfa3); }
+  }
+  {   // 분리수거장: 405·404동 사이 동쪽(오른쪽) 끝 나무 판잣집 + 앞에 통 (로드뷰 #6 · 11-26 사용자) — 큰 주차장 동쪽 끝 바깥, 경계 앞
+    const wood = new T.MeshStandardMaterial({color: col(0x9a7148), roughness: .9});
+    block(288, 177, 10, 4, 3, 54, 0.5, wood); block(288, 177, 11, 5, 0.4, 54, 3.5, brownRoof);
+    const binM = new T.MeshStandardMaterial({color: col(0x8a8f95), roughness: .7});
+    for (let k = 0; k < 3; k++) block(280 + (k - 1) * 1.3, 173 + (k - 1) * 1.8 + 0, 1.8, 1.4, 1.4, 54, 0.5, binM);
+  }
+  {   // 407동 북쪽 끝: 큰길 옆 경비초소(작은 흰 집, 검은 지붕) (로드뷰 #12)
+    block(140, 330, 4, 4, 3.2, -50, 0.5, new T.MeshStandardMaterial({color: col(0xe9e6df)})); block(140, 330, 5, 5, 0.5, -50, 3.7, new T.MeshStandardMaterial({color: col(0x3d4248)}));
+  }
+  {   // 작은 놀이터: 큰길 동쪽, 403동 쪽 · 바로 앞(남쪽)이 관리사무소 (로드뷰 #12·#13, 11-26 사용자)
+    plane(178, 400, 14, 10, -40, 0.6, new T.MeshStandardMaterial({color: col(0x4f8fc7), roughness: 1}));
+    block(176, 399, 3, 3, 3.5, -40, 0.6, new T.MeshStandardMaterial({color: col(0xd9473b)})); block(181, 402, 5, 1.5, 0.5, -40, 1.8, new T.MeshStandardMaterial({color: col(0xf2b51d)}));
+  }
+  {   // 407·408동 사이 주차장 서쪽 화단의 알록달록 정자 (빨간 지붕, 로드뷰 #16)
+    block(98, 404, 5, 5, 0.4, -50, 3.2, new T.MeshStandardMaterial({color: col(0xc8463a)}));
+    for (const [dx, dz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) block(98 + dx, 404 + dz, 0.4, 0.4, 2.7, 0, 0.5, new T.MeshStandardMaterial({color: col(0xe0b13a)}));
+  }
+  {   // 상가·경로당: 401동 남동쪽 초록 지붕 작은 건물 (스카이뷰 + 카카오 POI)
+    const m = new T.MeshStandardMaterial({color: col(0xe4ddd0), roughness: .9});
+    block(338, 656, 26, 12, 6, -38, 0.5, m); block(338, 656, 27, 13, 0.6, -38, 6.5, new T.MeshStandardMaterial({color: col(0x6fbf8a), roughness: .7}));
+  }
+  {   // 서쪽 돌 옹벽 + 흰 울타리 + 나무 줄 (서부로 쪽 경계)
+    const W = [[95, 197], [65, 288], [37, 433], [66, 651], [123, 734]];   // 11-26 새 경계 서쪽
+    const wallM = new T.MeshStandardMaterial({color: col(DARK ? 0x6f6a62 : 0xb9b0a2), roughness: 1}), fenceM = new T.MeshStandardMaterial({color: col(0xf4f4f2), roughness: .6});
+    for (let i = 0; i < W.length - 1; i++) {
+      const [x1, z1] = W[i], [x2, z2] = W[i + 1], L = Math.hypot(x2 - x1, z2 - z1), ang = Math.atan2(z2 - z1, x2 - x1) * 180 / Math.PI;
+      block((x1 + x2) / 2, (z1 + z2) / 2, L, 1.5, 3.5, ang, 0, wallM);
+      block((x1 + x2) / 2, (z1 + z2) / 2, L, 0.3, 1.4, ang, 3.5, fenceM, false);
+      for (let s = 6; s < L; s += 9) treeAt.push([x1 + (x2 - x1) * s / L - 6 * Math.sin(ang * Math.PI / 180) * -1, z1 + (z2 - z1) * s / L - 6 * Math.cos(ang * Math.PI / 180), 1.2]);
+    }
+  }
+  {   // 나무 한꺼번에 (줄기 + 둥근 잎)
+    const leaf = new T.InstancedMesh(new T.IcosahedronGeometry(2.6, 1), new T.MeshStandardMaterial({color: col(DARK ? 0x3f6b46 : 0x5f9a4c), roughness: 1, flatShading: true}), treeAt.length);
+    const stem = new T.InstancedMesh(new T.CylinderGeometry(.3, .4, 3, 6), new T.MeshStandardMaterial({color: col(0x7a5a3c)}), treeAt.length);
+    const mt = new T.Matrix4(), q = new T.Quaternion(), v = new T.Vector3();
+    treeAt.forEach(([x, z, s], i) => {
+      mt.compose(new T.Vector3(x - X0, 1.5, z - Z0), q, v.set(1, 1, 1)); stem.setMatrixAt(i, mt);
+      mt.compose(new T.Vector3(x - X0, 3 + 2.6 * s, z - Z0), q, v.set(s, s * 1.1, s)); leaf.setMatrixAt(i, mt);
+    });
+    leaf.castShadow = true; sc.add(leaf); sc.add(stem);
+  }
+  {
+    const CARC = [0xf4f4f2, 0xbfc3c8, 0x2b2e33, 0x5c6168, 0x3e5f8a, 0x9a3b34];   // 흰·은·검정·회색·파랑·빨강
+    const bodyG = new T.BoxGeometry(2.0, 1.0, 4.3), cabG = new T.BoxGeometry(1.7, 0.75, 2.2), glass = new T.MeshStandardMaterial({color: col(0x2a3440), roughness: .25, metalness: .3});
+    const mtx = new T.Matrix4(), q = new T.Quaternion(), one = new T.Vector3(1, 1, 1), up = new T.Vector3(0, 1, 0);
+    CARC.forEach((hex, ci) => {
+      const list = cars.filter(c => c.c === ci); if (!list.length) return;
+      const body = new T.InstancedMesh(bodyG, new T.MeshStandardMaterial({color: col(hex), roughness: .45, metalness: .25}), list.length);
+      const cab = new T.InstancedMesh(cabG, glass, list.length);
+      list.forEach((c, i) => {
+        q.setFromAxisAngle(up, c.ry);
+        mtx.compose(new T.Vector3(c.x, 1.15, c.z), q, one); body.setMatrixAt(i, mtx);
+        mtx.compose(new T.Vector3(c.x, 2.0, c.z), q, one); cab.setMatrixAt(i, mtx);
+      });
+      body.castShadow = cab.castShadow = true; sc.add(body); sc.add(cab);
+    });
+  }
+  // 크기·그리기·이름표
+  const M = {b, dirty: true, capHas: capMat, capNo, capOn, moved: false};
+  // 처음 보기: 돌려 놓은 뒤 한 번에 원래 자리로
+  const home = [cam.position.clone(), ctl.target.clone()];
+  M.rs = document.createElement('button'); M.rs.className = 'rs'; M.rs.textContent = '↺ 처음 보기'; M.rs.hidden = true; box.appendChild(M.rs);
+  M.rs.onclick = () => { cam.position.copy(home[0]); ctl.target.copy(home[1]); ctl.update(); M.moved = false; M.rs.hidden = true; M.dirty = true; };
+  ctl.addEventListener('start', () => { M.moved = true; M.rs.hidden = false; });
+  const size = () => { const w = box.clientWidth, h = box.clientHeight; rd.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); M.dirty = true; };
+  new ResizeObserver(size).observe(box); size();
+  const v = new T.Vector3();
+  const place = (el, at) => { v.copy(at).project(cam); el.style.transform = 'translate(' + ((v.x + 1) / 2 * box.clientWidth) + 'px,' + ((1 - v.y) / 2 * box.clientHeight) + 'px) translate(-50%,-100%)'; el.style.zIndex = String(Math.round((1 - v.z) * 1000)); };
+  ctl.addEventListener('change', () => { M.dirty = true; });
+  (function loop() {
+    ctl.update();
+    if (M.dirty) { M.dirty = false; rd.render(sc, cam); for (const d in b) place(b[d].lab, b[d].at); place(olab, oat); }
+    requestAnimationFrame(loop);
+  })();
+  // 누르기: 끌기(돌리기)와 구분해서, 건물이나 이름표를 눌렀을 때만
+  const ray = new T.Raycaster(), p2 = new T.Vector2(); let down = null;
+  const choose = d => { DONG = DONG === d ? '' : d; render(); };
+  cv.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
+  cv.addEventListener('pointerup', e => {
+    if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6) return;
+    const r = cv.getBoundingClientRect(); p2.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+    ray.setFromCamera(p2, cam); const hit = ray.intersectObjects(pick)[0];
+    if (hit) choose(hit.object.userData.d); else if (DONG) { DONG = ''; render(); }   // 11-26 빈 곳을 누르면 다시 전체
+  });
+  box.addEventListener('click', e => { const l = e.target.closest('.m3l'); if (l && l.dataset.d) choose(l.dataset.d); });
+  return M;
+}
+
+function render() {
+  const st = $('st'), list = $('list');
+  if (!DATA) return;
+  const a = ago(DATA.at);
+  st.className = 'st' + (a.m > 10 ? ' old' : '');
+  st.textContent = '공단 접수대장 확인 ' + DATA.at.slice(11, 16) + ' (' + a.txt + ')' + (a.m > 10 ? ' · 자동 확인이 멈춰 있음' : '');
+  if (!DATA.ok) { $('cnt').textContent = ''; list.innerHTML = '<div class="msg err">' + esc(DATA.why || '접수대장을 읽지 못함') + '</div>'; return; }
+  const today = DATA.at.slice(0, 10);
+  let rows = DATA.rows.map(r => ({d: r[0], loc: r[1], dong: r[2], ho: r[3], name: r[4], txt: r[5], by: r[6], how: r[7], st: r[8]}));
+  if (!map3d(rows)) drawMap(rows);   // 3D가 안 되면(옛 휴대폰·인터넷 끊김) 그림으로
+  const n = {}; rows.forEach(r => { n[r.dong] = (n[r.dong] || 0) + 1; });
+  $('dch').innerHTML = '<button data-d=""' + (DONG ? '' : ' class="on"') + '>전체<b>' + rows.length + '</b></button>'
+    + Object.keys(BLD).sort().map(d => '<button data-d="' + d + '" class="' + (DONG === d ? 'on' : n[d] ? 'has' : '') + '">' + d + '동' + (n[d] ? '<b>' + n[d] + '</b>' : '') + '</button>').join('');
+  if (DONG) rows = rows.filter(r => r.dong === DONG);
+  const q = $('q').value.trim().split(/\s+/).filter(Boolean);
+  if (q.length) rows = rows.filter(r => { const h = [r.dong + '동', r.ho, r.loc, r.name, r.txt, r.by].join(' '); return q.every(w => h.includes(w)); });
+  $('cnt').textContent = DATA.rows.length + '건';
+  if (SORT === 'u') rows.sort((x, y) => (+x.dong - +y.dong) || (parseInt(x.ho) - parseInt(y.ho)));
+  else rows.sort((x, y) => x.d < y.d ? 1 : x.d > y.d ? -1 : 0);
+  // 동·호순: 동마다 묶고 줄에는 호만 / 접수순: 한 묶음에 '동-호'
+  let html = '', g = null;
+  const per = {}; rows.forEach(r => { per[r.dong] = (per[r.dong] || 0) + 1; });
+  for (const r of rows) {
+    if (SORT === 'u' && r.dong !== g) { html += (g === null ? '' : '</div>') + '<div class="grp"><div class="gh">' + esc(r.dong) + '동<span class="gn">' + per[r.dong] + '건</span></div>'; g = r.dong; }
+    if (SORT === 'd' && g === null) { html += '<div class="grp">'; g = ''; }
+    const u = SORT === 'u' ? r.ho : r.dong + '-' + r.ho.replace(/호$/, '');
+    // 11-26 '며칠 지남' 꼬리표는 사용자가 필요 없다고 해서 뺌 → 접수일은 아래 줄에 글자로만
+    html += '<div class="r"><span class="u">' + esc(u) + '</span><span class="loc">' + esc(r.loc || '-') + '</span>'
+      + '<span class="txt">' + tel(r.txt) + (r.st && r.st !== '접수' ? '<span class="stt">' + esc(r.st) + '</span>' : '')
+      + '<span class="who">신청 ' + esc(r.name) + ' · 접수 ' + esc(r.by) + ' · ' + esc(r.d.slice(5, 10).replace('-', '/')) + '</span></span></div>';
+  }
+  if (g !== null) html += '</div>';
+  list.innerHTML = html ? html
+    : '<div class="msg">' + (q.length ? '찾는 세대가 없습니다' : '처리할 잔손이 없습니다 👍') + '</div>';
+}
+
+// 11-26 휴대폰 앱(GitHub Pages에 올린 이 파일)은 구글 화면을 안 열고 자료만 받아 옴 — 구글 계정이 여러 개인 폰에서 '파일을 열 수 없습니다' 나던 것
+const API = 'https://script.google.com/macros/s/AKfycbySUZQS3ZkAQpwK806avtfEzLR4dB7IVy_CUcvcVJkgkd6TG8thso_0Zdu3kacwC8we_A/exec';
+const APP = 'https://cook814444-bot.github.io/g4/';
+const GAS = typeof google !== 'undefined' && !!google.script;
+function load() {
+  if (!GAS) { fetch(API + '?op=svcjson', {cache: 'no-store'}).then(x => x.json()).then(got, () => { $('st').textContent = '인터넷 연결을 확인해 주세요 (다시 시도 중)'; }); return; }
+  google.script.run.withSuccessHandler(got).withFailureHandler(() => { $('st').textContent = '인터넷 연결을 확인해 주세요 (다시 시도 중)'; }).svcData();
+}
+async function got(r) {
+    if (!r) { $('st').textContent = '아직 관리소 PC가 올린 자료가 없습니다'; return; }
+    URL0 = r.url || URL0;
+    const sig = r.at + '|' + (r.cloud ? r.cloud.at : '');
+    if (sig === lastAt && DATA) { render(); return; }
+    // 관리소 PC가 읽은 것과 구글이 읽은 것 중: 제대로 읽은 것 → 그중 새 것
+    try {
+      const c = [];
+      if (r.data) c.push(await open_(r.data));
+      if (r.cloud) c.push(await open2_(r.cloud.data));
+      c.sort((x, y) => (+!!y.ok - +!!x.ok) || (x.at < y.at ? 1 : x.at > y.at ? -1 : 0));
+      DATA = c[0]; lastAt = sig; render();
+    }
+    catch (e) { $('st').textContent = '주소가 잘못되었습니다 (관리소에서 받은 주소 그대로 열어 주세요)'; }
+}
+
+// 2026-11-25 관리소 PC는 웹 앱을 거치지 않고 이 파일을 바로 엶 → service_watch.ps1이 옆에 쓰는 잔손_자료.js(암호화 안 함)를 읽음
+function loadLocal() {
+  const s = document.createElement('script');
+  s.src = '잔손_자료.js?t=' + Date.now();
+  s.onload = () => {
+    s.remove();
+    const r = window.G4SVC;
+    if (!r) { $('st').textContent = '아직 자료가 없습니다 (잔손 현황 프로그램이 켜져 있는지 확인)'; return; }
+    URL0 = r.url || URL0; HASH = r.k ? 'k=' + r.k : HASH;
+    if (r.at === lastAt && DATA) { render(); return; }
+    DATA = r; lastAt = r.at; render();
+  };
+  s.onerror = () => { s.remove(); $('st').textContent = '자료 파일이 없습니다 (잔손 현황 프로그램이 켜져 있는지 확인)'; };
+  document.head.appendChild(s);
+}
+
+$('q').oninput = render;
+$('s1').onclick = () => { SORT = 'u'; $('s1').className = 'on'; $('s2').className = ''; render(); };
+$('s2').onclick = () => { SORT = 'd'; $('s2').className = 'on'; $('s1').className = ''; render(); };
+// PC에서 열었을 때: QR을 휴대폰 카메라로 찍으면 같은 주소(열쇠 포함)로 열림
+$('qb').onclick = () => {
+  const b = $('qr');
+  if (!b.hidden) { b.hidden = true; return; }
+  if (!URL0 || typeof qrcode === 'undefined') return;
+  const qr = qrcode(0, 'L'); qr.addData(APP + '#' + HASH); qr.make();   // 11-26 구글 웹 앱 주소 대신 휴대폰 앱 주소
+  b.innerHTML = '<p>휴대폰 카메라로 찍어서 열고, 크롬 메뉴(⋮)에서 <b>앱 설치</b>(또는 홈 화면에 추가)를 누르면 홈 화면에 🔧 아이콘이 생깁니다.</p>' + qr.createImgTag(6, 0);
+  b.querySelector('img').alt = 'QR'; b.hidden = false;
+};
+
+const start = h => {
+  HASH = h || '';
+  const m = HASH.match(/k=([0-9a-f]{64})/);
+  if (m) { KEY = m[1]; try { localStorage.setItem('g4svc_k', KEY); } catch (e) {} }
+  else { try { KEY = localStorage.getItem('g4svc_k') || ''; HASH = KEY ? 'k=' + KEY : ''; } catch (e) {} }
+  if (!KEY) { $('st').textContent = '관리소에서 받은 주소(끝에 #k=… 가 붙은 주소)로 열어 주세요'; return; }
+  load();
+  setInterval(load, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+};
+if (GAS) google.script.url.getLocation(loc => start(loc.hash));
+else if (location.protocol === 'https:') {   // 휴대폰 앱: 처음 QR로 열 때 #k=열쇠를 폰에 기억 → 홈 화면 아이콘으로 열면 주소에 열쇠가 없어도 됨
+  start(location.hash.slice(1));
+  if (location.hash) history.replaceState(null, '', location.pathname);
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+} else {
+  $('goback').hidden = false;
+  loadLocal();
+  setInterval(loadLocal, 20000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) loadLocal(); });
+}
+setInterval(render, 30000);  // '몇 분 전' 글자만 새로
+</script>
+</body></html>
