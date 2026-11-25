@@ -793,7 +793,15 @@ if (GAS) google.script.url.getLocation(loc => start(loc.hash));
 else if (location.protocol === 'https:') {   // 휴대폰 앱: 처음 QR로 열 때 #k=열쇠를 폰에 기억 → 홈 화면 아이콘으로 열면 주소에 열쇠가 없어도 됨
   start(location.hash.slice(1));
   if (location.hash) history.replaceState(null, '', location.pathname);
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+    // 11-26 sw.js가 뒤에서 받은 화면이 지금 것과 다르면 알려 줌 → 한 번만 새로고침 (전엔 고친 게 다음에 켤 때야 보였음)
+    navigator.serviceWorker.addEventListener('message', ev => {
+      if (ev.data !== 'g4-new') return;
+      try { if (sessionStorage.getItem('g4_rl')) return; sessionStorage.setItem('g4_rl', '1'); } catch (e) {}
+      location.reload();
+    });
+  }
 } else {
   $('goback').hidden = false;
   loadLocal();
