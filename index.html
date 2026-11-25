@@ -59,10 +59,16 @@ h1 .n{color:var(--acc)}
 #m3 .m3l.on{background:var(--acc);color:#fff;border-color:var(--acc)}
 #m3 .m3l b{display:inline-block;min-width:18px;margin-left:5px;padding:0 5px;border-radius:999px;background:#fff;color:var(--red);font-size:12px;text-align:center}
 #m3 .m3l.on b{color:var(--acc)}
-#m3 .m3l:not(.has):not(.on):not(.of){opacity:.8;font-size:11px;padding:1px 7px;font-weight:700}
+#m3 .m3l:not(.has):not(.on):not(.of):not(.me){opacity:.8;font-size:11px;padding:1px 7px;font-weight:700}
 #m3 .m3l.has{font-size:13px;padding:3px 5px 3px 10px;box-shadow:0 2px 8px rgba(192,57,43,.35)}
 #m3 .rs{position:absolute;right:8px;top:8px;font:inherit;font-size:13px;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--sub);cursor:pointer;z-index:2000}
 #m3 .rs[hidden]{display:none}
+/* 11-26 내 위치 (휴대폰 GPS) */
+#m3 .gb{position:absolute;left:8px;top:8px;font:inherit;font-size:13px;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--sub);cursor:pointer;z-index:2000}
+#m3 .gb.on{background:#e53935;color:#fff;border-color:#e53935}
+#m3 .m3l.me{background:#e53935;color:#fff;border-color:#e53935;box-shadow:0 2px 8px rgba(229,57,53,.45);cursor:default;margin-top:-9px;z-index:3000!important}
+#m3 .m3l.me::after{content:'';position:absolute;left:50%;bottom:-8px;margin-left:-6px;border:6px solid transparent;border-top:9px solid #e53935;border-bottom:0}
+#m3 .m3l[hidden]{display:none}
 /* 11-26 지도 아래 동 단추 줄: 어느 동에 몇 건인지 한눈에, 눌러서 거르기 */
 .dch{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0 2px}
 .dch button{font:inherit;font-size:14px;font-weight:700;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--sub);cursor:pointer}
@@ -583,6 +589,21 @@ function init3d() {
   }
   // 크기·그리기·이름표
   const M = {b, dirty: true, capHas: capMat, capNo, capOn, moved: false};
+  // 11-26 내 위치: 빨간 점(기둥 위 공) + 바닥에 오차 범위 원 + '나' 이름표 → M.me({x, z, r}) / M.me(null)
+  // 이름표 꼬리 끝 = 내 자리 (공을 세웠더니 이름표에 가려 안 보였음)
+  const meG = new T.Group(); meG.visible = false; sc.add(meG);
+  const meDot = new T.Mesh(new T.CircleGeometry(3.5, 24), new T.MeshBasicMaterial({color: 0xe53935, depthTest: false}));
+  meDot.rotation.x = -Math.PI / 2; meDot.position.y = 1.4; meDot.renderOrder = 10; meG.add(meDot);
+  const meAcc = new T.Mesh(new T.CircleGeometry(1, 48), new T.MeshBasicMaterial({color: 0xe53935, transparent: true, opacity: .22, depthWrite: false}));
+  meAcc.rotation.x = -Math.PI / 2; meAcc.position.y = 1.2; meG.add(meAcc);
+  const melab = document.createElement('div'); melab.className = 'm3l me'; melab.textContent = '나'; melab.hidden = true; box.appendChild(melab);
+  const meat = new T.Vector3();
+  M.me = p => {
+    if (!p) { meG.visible = false; melab.hidden = true; }
+    else { meG.position.set(p.x - X0, 0, p.z - Z0); meAcc.scale.setScalar(Math.max(5, p.r)); meat.set(p.x - X0, 1.4, p.z - Z0); meG.visible = true; melab.hidden = false; }
+    M.dirty = true;
+  };
+  if (GPS_OK) { M.gb = document.createElement('button'); M.gb.className = 'gb'; M.gb.textContent = '📍 내 위치'; M.gb.onclick = () => (MEW === null ? gpsOn() : gpsOff()); box.appendChild(M.gb); }
   // 처음 보기: 돌려 놓은 뒤 한 번에 원래 자리로
   const home = [cam.position.clone(), ctl.target.clone()];
   M.rs = document.createElement('button'); M.rs.className = 'rs'; M.rs.textContent = '↺ 처음 보기'; M.rs.hidden = true; box.appendChild(M.rs);
@@ -595,7 +616,7 @@ function init3d() {
   ctl.addEventListener('change', () => { M.dirty = true; });
   (function loop() {
     ctl.update();
-    if (M.dirty) { M.dirty = false; rd.render(sc, cam); for (const d in b) place(b[d].lab, b[d].at); place(olab, oat); }
+    if (M.dirty) { M.dirty = false; rd.render(sc, cam); for (const d in b) place(b[d].lab, b[d].at); place(olab, oat); if (!melab.hidden) place(melab, meat); }
     requestAnimationFrame(loop);
   })();
   // 누르기: 끌기(돌리기)와 구분해서, 건물이나 이름표를 눌렀을 때만
@@ -609,7 +630,61 @@ function init3d() {
     if (hit) choose(hit.object.userData.d); else if (DONG) { DONG = ''; render(); }   // 11-26 빈 곳을 누르면 다시 전체
   });
   box.addEventListener('click', e => { const l = e.target.closest('.m3l'); if (l && l.dataset.d) choose(l.dataset.d); });
+  if (GPS_OK) { try { if (localStorage.getItem('g4_gps') === '1') setTimeout(gpsOn, 0); } catch (e) {} }   // 지난번에 켜 뒀으면 바로 (권한은 이미 허용됨)
+  const dm = location.search.match(/[?&]me=([\d.]+),([\d.]+)/);   // 점검용: ?me=위도,경도 → 그 자리에 점
+  if (dm) { const p = geoXY(+dm[1], +dm[2]); M.me({x: p.x, z: p.z, r: 20}); }
   return M;
+}
+
+// ── 11-26 내 위치 (휴대폰 앱에서만 · 위치는 폰 안에서만 쓰고 어디로도 안 보냄) ──
+// GPS 위경도 → 지도 좌표: 카카오 좌표(WCONGNAMUL)를 위경도로 바꿔 카카오맵에 두 번 찍어 봄 — 407·403동 사이 기준점 + 410동 예측점이 실제로 410동 위(오차 약 3m)
+// 지도는 북쪽이 위(회전 0.5° 이내), 1칸 ≈ 0.505m
+const GEO = {lat: 36.612666, lng: 127.442202, x: 161.6, y: 399.2, mpu: 0.505, mLat: 110970, mLng: 89462};
+const geoXY = (lat, lng) => ({x: GEO.x + (lng - GEO.lng) * GEO.mLng / GEO.mpu, z: GEO.y - (lat - GEO.lat) * GEO.mLat / GEO.mpu});
+const GPS_OK = location.protocol === 'https:' && typeof google === 'undefined' && 'geolocation' in navigator;   // PC(파일로 열기)는 GPS가 없고, 구글 웹 앱 화면은 위치를 막아 둠
+let MEW = null;
+function inSite(x, y) {
+  let c = false;
+  for (let i = 0, j = SITE.length - 1; i < SITE.length; j = i++) {
+    const [xi, yi] = SITE[i], [xj, yj] = SITE[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+function siteDist(x, y) {   // 단지 경계까지 거리 (지도 칸)
+  let best = 1e9;
+  for (let i = 0, j = SITE.length - 1; i < SITE.length; j = i++) {
+    const [ax, ay] = SITE[j], [bx, by] = SITE[i], dx = bx - ax, dy = by - ay;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)));
+    best = Math.min(best, Math.hypot(x - ax - t * dx, y - ay - t * dy));
+  }
+  return best;
+}
+function gpsSay(t, on) { if (M3 && M3.gb) { M3.gb.textContent = t; M3.gb.className = 'gb' + (on ? ' on' : ''); } }
+function gpsOff() {
+  if (MEW !== null) navigator.geolocation.clearWatch(MEW);
+  MEW = null; try { localStorage.removeItem('g4_gps'); } catch (e) {}
+  if (M3) M3.me(null);
+  gpsSay('📍 내 위치', false);
+}
+function gpsOn() {
+  if (!M3 || MEW !== null) return;
+  gpsSay('📍 위치 찾는 중…', true);
+  MEW = navigator.geolocation.watchPosition(pos => {
+    try { localStorage.setItem('g4_gps', '1'); } catch (e) {}
+    const c = pos.coords, p = geoXY(c.latitude, c.longitude), acc = Math.round(c.accuracy);
+    if (!inSite(p.x, p.z)) {
+      const far = siteDist(p.x, p.z) * GEO.mpu;
+      if (far > 40) { M3.me(null); gpsSay('📍 단지 밖 (약 ' + (far >= 1000 ? (far / 1000).toFixed(1) + 'km' : Math.round(far / 10) * 10 + 'm') + ')', true); return; }
+    }
+    M3.me({x: p.x, z: p.z, r: Math.min(acc, 150) / GEO.mpu});
+    let nd = '', best = 1e9;
+    for (const d in BLD) { const k = Math.hypot(BLD[d][0] - p.x, BLD[d][1] - p.z); if (k < best) { best = k; nd = d; } }
+    gpsSay('📍 ' + nd + '동 근처 · ±' + acc + 'm', true);
+  }, err => {
+    if (err.code === 1) { gpsOff(); gpsSay('📍 위치 권한이 꺼져 있음', false); }
+    else gpsSay('📍 위치를 못 잡음 (다시 시도 중)', true);
+  }, {enableHighAccuracy: true, maximumAge: 5000, timeout: 20000});
 }
 
 function render() {
