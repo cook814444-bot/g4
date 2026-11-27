@@ -66,6 +66,13 @@ h1 .n{color:var(--acc)}
 /* 11-26 내 위치 (휴대폰 GPS) */
 #m3 .gb{position:absolute;left:8px;top:8px;font:inherit;font-size:13px;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--sub);cursor:pointer;z-index:2000}
 #m3 .gb.on{background:#e53935;color:#fff;border-color:#e53935}
+/* 11-27 GPS 보정: 왼쪽 위 작은 안내(보정 지우기) + 꾹 누르면 아래에 '여기로 맞추기' 띠 */
+#m3 .gx{position:absolute;left:8px;top:42px;font:inherit;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--sub);z-index:2000;opacity:.92}
+#m3 .gx.cal{cursor:pointer}
+#m3 .gx[hidden],#m3 .gcb[hidden]{display:none}
+#m3 .gcb{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:8px 10px;border-radius:12px;background:var(--card);border:1px solid var(--line);box-shadow:0 2px 10px rgba(0,0,0,.2);font-size:13px;font-weight:700;color:var(--ink);z-index:2100}
+#m3 .gcb button{font:inherit;font-size:13px;font-weight:700;padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--sub);cursor:pointer}
+#m3 .gcb button.ok{background:#e53935;color:#fff;border-color:#e53935}
 #m3 .m3l.me{background:#e53935;color:#fff;border-color:#e53935;box-shadow:0 2px 8px rgba(229,57,53,.45);cursor:default;margin-top:-9px;z-index:3000!important}
 #m3 .m3l.me::after{content:'';position:absolute;left:50%;bottom:-8px;margin-left:-6px;border:6px solid transparent;border-top:9px solid #e53935;border-bottom:0}
 #m3 .m3l[hidden]{display:none}
@@ -604,6 +611,20 @@ function init3d() {
     M.dirty = true;
   };
   if (GPS_OK) { M.gb = document.createElement('button'); M.gb.className = 'gb'; M.gb.textContent = '📍 내 위치'; M.gb.onclick = () => (MEW === null ? gpsOn() : gpsOff()); box.appendChild(M.gb); }
+  // 11-27 보정: 내 위치가 켜져 있을 때 지도를 꾹(0.6초) 누르면 '여기가 내 자리' → 그 차이를 폰에 저장해 계속 씀
+  M.gx = document.createElement('div'); M.gx.className = 'gx'; M.gx.hidden = true; box.appendChild(M.gx);
+  M.gx.onclick = () => { if (M.gx.classList.contains('cal')) gpsCalClear(); };
+  M.gcb = document.createElement('div'); M.gcb.className = 'gcb'; M.gcb.hidden = true; box.appendChild(M.gcb);
+  const pin = new T.Mesh(new T.RingGeometry(3, 5, 32), new T.MeshBasicMaterial({color: 0x2f78c4, depthTest: false, side: T.DoubleSide}));
+  pin.rotation.x = -Math.PI / 2; pin.position.y = 1.6; pin.renderOrder = 11; pin.visible = false; sc.add(pin);
+  M.calAsk = (mx, mz, msg, ok) => {   // ok 없으면 안내만
+    pin.position.set(mx - X0, 1.6, mz - Z0); pin.visible = !!ok; M.dirty = true;
+    M.gcb.innerHTML = '<span>' + msg + '</span>' + (ok ? '<button class="ok">여기로 맞추기</button>' : '') + '<button>' + (ok ? '취소' : '닫기') + '</button>';
+    M.gcb.hidden = false;
+    const close = () => { M.gcb.hidden = true; pin.visible = false; M.dirty = true; };
+    M.gcb.querySelectorAll('button').forEach(b => { b.onclick = () => { close(); if (b.className === 'ok') ok(); }; });
+    if (!ok) setTimeout(close, 4000);
+  };
   // 처음 보기: 돌려 놓은 뒤 한 번에 원래 자리로
   const home = [cam.position.clone(), ctl.target.clone()];
   M.rs = document.createElement('button'); M.rs.className = 'rs'; M.rs.textContent = '↺ 처음 보기'; M.rs.hidden = true; box.appendChild(M.rs);
@@ -622,8 +643,23 @@ function init3d() {
   // 누르기: 끌기(돌리기)와 구분해서, 건물이나 이름표를 눌렀을 때만
   const ray = new T.Raycaster(), p2 = new T.Vector2(); let down = null;
   const choose = d => { DONG = DONG === d ? '' : d; render(); };
-  cv.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
+  const ground = new T.Plane(new T.Vector3(0, 1, 0), 0), gp = new T.Vector3(); let hold = 0;
+  const unhold = () => { clearTimeout(hold); hold = 0; };
+  cv.addEventListener('pointerdown', e => {
+    down = [e.clientX, e.clientY]; unhold();
+    if (MEW === null || !e.isPrimary) return;
+    hold = setTimeout(() => {   // 꾹 누름 = 보정 (끌기·두 손가락이면 취소)
+      hold = 0; if (!down) return;
+      const r = cv.getBoundingClientRect(); p2.set((down[0] - r.left) / r.width * 2 - 1, -(down[1] - r.top) / r.height * 2 + 1);
+      ray.setFromCamera(p2, cam); down = null;
+      if (ray.ray.intersectPlane(ground, gp)) gpsCalAsk(gp.x + X0, gp.z + Z0);
+    }, 600);
+  });
+  cv.addEventListener('pointermove', e => { if (hold && down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6) unhold(); });
+  cv.addEventListener('pointercancel', unhold);
+  cv.addEventListener('contextmenu', e => e.preventDefault());   // 폰에서 꾹 누를 때 메뉴 안 뜨게
   cv.addEventListener('pointerup', e => {
+    unhold();
     if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6) return;
     const r = cv.getBoundingClientRect(); p2.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
     ray.setFromCamera(p2, cam); const hit = ray.intersectObjects(pick)[0];
@@ -643,6 +679,46 @@ const GEO = {lat: 36.612666, lng: 127.442202, x: 161.6, y: 399.2, mpu: 0.505, mL
 const geoXY = (lat, lng) => ({x: GEO.x + (lng - GEO.lng) * GEO.mLng / GEO.mpu, z: GEO.y - (lat - GEO.lat) * GEO.mLat / GEO.mpu});
 const GPS_OK = location.protocol === 'https:' && typeof google === 'undefined' && 'geolocation' in navigator;   // PC(파일로 열기)는 GPS가 없고, 구글 웹 앱 화면은 위치를 막아 둠
 let MEW = null;
+// 11-27 GPS 보정 (사용자 'GPS가 너무 안 맞아서 · 한번 알아서 보정해 주는 걸로 움직여도')
+// ① 흔들림 줄이기: 새 값을 정확도만큼만 섞음(흐린 값은 조금, 또렷한 값은 많이) · 걷는 속도 초당 2m만큼 따라감
+// ② 흐린 값(±30m 넘음)은 점을 안 옮김 ③ 한 번 꾹 눌러 맞춘 차이(CAL)는 폰에 저장해 다음에도, 어디로 움직여도 같이 적용
+const GPS_MAX = 30, GPS_WALK = 2;
+let KF = null, CAL = null, LASTACC = 0;
+try { CAL = JSON.parse(localStorage.getItem('g4_gps_cal') || 'null'); } catch (e) {}
+function gpsCalInfo() {
+  if (!M3 || !M3.gx) return;
+  const g = M3.gx;
+  g.hidden = MEW === null;
+  g.classList.toggle('cal', !!CAL);
+  g.textContent = CAL ? '보정됨 · 지우기 ✕' : '점이 틀리면 내 자리를 꾹 누르기';
+}
+function gpsCalAsk(mx, mz) {
+  if (!KF) return M3.calAsk(mx, mz, '아직 위치를 못 잡았어요. 잠시 뒤 다시 꾹 눌러 주세요');
+  const sd = Math.sqrt(KF.v);
+  if (sd > 25) return M3.calAsk(mx, mz, 'GPS가 흐려요(±' + Math.round(sd) + 'm). 조금 뒤 다시 해 주세요');
+  if (!inSite(mx, mz) && siteDist(mx, mz) * GEO.mpu > 15) return M3.calAsk(mx, mz, '단지 밖을 눌렀어요. 서 있는 곳을 다시 꾹 눌러 주세요');
+  const move = Math.round(Math.hypot(mx - KF.x, mz - KF.z) * GEO.mpu);
+  M3.calAsk(mx, mz, '여기가 지금 내 자리예요? (약 ' + move + 'm 옮김)', () => {
+    const base = CAL || {dx: 0, dz: 0}, rx = KF.x - base.dx, rz = KF.z - base.dz;   // 보정 전 GPS 자리
+    const c = {dx: mx - rx, dz: mz - rz};
+    if (Math.hypot(c.dx, c.dz) * GEO.mpu > 80) return M3.calAsk(mx, mz, '차이가 너무 커서(80m 넘음) 안 맞췄어요');
+    CAL = c; try { localStorage.setItem('g4_gps_cal', JSON.stringify(CAL)); } catch (e) {}
+    KF.x = mx; KF.z = mz; KF.v = Math.min(KF.v, 25);
+    gpsShow(); gpsCalInfo();
+  });
+}
+function gpsCalClear() {
+  if (KF && CAL) { KF.x -= CAL.dx; KF.z -= CAL.dz; }
+  CAL = null; try { localStorage.removeItem('g4_gps_cal'); } catch (e) {}
+  if (KF) gpsShow(); gpsCalInfo();
+}
+function gpsShow() {
+  const sd = Math.sqrt(KF.v);
+  M3.me({x: KF.x, z: KF.z, r: Math.min(Math.max(sd, LASTACC * 0.5), 150) / GEO.mpu});
+  let nd = '', best = 1e9;
+  for (const d in BLD) { const k = Math.hypot(BLD[d][0] - KF.x, BLD[d][1] - KF.z); if (k < best) { best = k; nd = d; } }
+  gpsSay('📍 ' + nd + '동 근처 · ±' + Math.round(sd) + 'm', true);
+}
 function inSite(x, y) {
   let c = false;
   for (let i = 0, j = SITE.length - 1; i < SITE.length; j = i++) {
@@ -663,28 +739,39 @@ function siteDist(x, y) {   // 단지 경계까지 거리 (지도 칸)
 function gpsSay(t, on) { if (M3 && M3.gb) { M3.gb.textContent = t; M3.gb.className = 'gb' + (on ? ' on' : ''); } }
 function gpsOff() {
   if (MEW !== null) navigator.geolocation.clearWatch(MEW);
-  MEW = null; try { localStorage.removeItem('g4_gps'); } catch (e) {}
+  MEW = null; KF = null; try { localStorage.removeItem('g4_gps'); } catch (e) {}
   if (M3) M3.me(null);
-  gpsSay('📍 내 위치', false);
+  gpsSay('📍 내 위치', false); gpsCalInfo();
 }
 function gpsOn() {
   if (!M3 || MEW !== null) return;
   gpsSay('📍 위치 찾는 중…', true);
   MEW = navigator.geolocation.watchPosition(pos => {
     try { localStorage.setItem('g4_gps', '1'); } catch (e) {}
-    const c = pos.coords, p = geoXY(c.latitude, c.longitude), acc = Math.round(c.accuracy);
+    const c = pos.coords, p = geoXY(c.latitude, c.longitude), acc = Math.max(3, Math.round(c.accuracy));
+    if (CAL) { p.x += CAL.dx; p.z += CAL.dz; }
     if (!inSite(p.x, p.z)) {
       const far = siteDist(p.x, p.z) * GEO.mpu;
-      if (far > 40) { M3.me(null); gpsSay('📍 단지 밖 (약 ' + (far >= 1000 ? (far / 1000).toFixed(1) + 'km' : Math.round(far / 10) * 10 + 'm') + ')', true); return; }
+      if (far > 40) { KF = null; M3.me(null); gpsSay('📍 단지 밖 (약 ' + (far >= 1000 ? (far / 1000).toFixed(1) + 'km' : Math.round(far / 10) * 10 + 'm') + ')', true); return; }
     }
-    M3.me({x: p.x, z: p.z, r: Math.min(acc, 150) / GEO.mpu});
-    let nd = '', best = 1e9;
-    for (const d in BLD) { const k = Math.hypot(BLD[d][0] - p.x, BLD[d][1] - p.z); if (k < best) { best = k; nd = d; } }
-    gpsSay('📍 ' + nd + '동 근처 · ±' + acc + 'm', true);
+    if (acc > GPS_MAX) {   // 흐린 값: 점은 그대로 두고 기다림
+      if (!KF) M3.me(null);
+      gpsSay('📍 위치 흐림 ±' + acc + 'm · 기다리는 중', true); return;
+    }
+    const now = pos.timestamp || Date.now(), dt = KF ? Math.max(0, (now - KF.t) / 1000) : 0;
+    if (!KF || dt > 60) KF = {x: p.x, z: p.z, v: acc * acc, t: now};   // 처음 또는 1분 넘게 끊겼으면 새로
+    else {
+      KF.v += (GPS_WALK * dt) * (GPS_WALK * dt) + 1;
+      const k = KF.v / (KF.v + acc * acc);
+      KF.x += k * (p.x - KF.x); KF.z += k * (p.z - KF.z); KF.v *= 1 - k; KF.t = now;
+    }
+    LASTACC = acc;
+    gpsShow(); gpsCalInfo();
   }, err => {
     if (err.code === 1) { gpsOff(); gpsSay('📍 위치 권한이 꺼져 있음', false); }
     else gpsSay('📍 위치를 못 잡음 (다시 시도 중)', true);
   }, {enableHighAccuracy: true, maximumAge: 5000, timeout: 20000});
+  gpsCalInfo();
 }
 
 function render() {
