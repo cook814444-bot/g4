@@ -714,19 +714,27 @@ function gpsCalClear() {
 }
 function gpsShow() {
   const sd = Math.sqrt(KF.v);
-  M3.me({x: KF.x, z: KF.z, r: Math.min(Math.max(sd, LASTACC * 0.5), 150) / GEO.mpu});
   // 11-27 사용자 '관리사무소 안인데 402동 근처라고 뜸' → 관리사무소도 후보에 넣고, 중심점 대신 건물 벽까지 거리로 비교
   let nd = '', best = 1e9;
   for (const d in BLD) { const k = boxDist(KF.x, KF.z, BLD[d][0], BLD[d][1], BLD[d][2], TOWER[d] ? 40 : 13, BLD[d][3]); if (k < best) { best = k; nd = d + '동 근처'; } }
   const ko = boxDist(KF.x, KF.z, OFFICE[0], OFFICE[1], OFFICE[2], 16, OFFICE[3]);
   // 11-27 사용자 '분명 안인데 밖처럼 보임' → 실내 GPS는 10~20m 밀리니 그 오차 안이면 안으로 봄 (402동 벽까지 약 30m라 20m에서 끊음)
-  if (ko * GEO.mpu <= Math.min(Math.max(10, sd), 20)) nd = '관리사무소'; else if (ko <= best) nd = '관리사무소 근처';
+  let at = {x: KF.x, z: KF.z};
+  if (ko * GEO.mpu <= Math.min(Math.max(10, sd), 20)) { nd = '관리사무소'; at = boxIn(KF.x, KF.z, OFFICE[0], OFFICE[1], OFFICE[2], 16, OFFICE[3], 2); }   // 11-27 사용자 '건물 밖에 찍히는 건 싫음' → 점을 건물 안으로 당김 (보정 값은 안 건드림)
+  else if (ko <= best) nd = '관리사무소 근처';
+  M3.me({x: at.x, z: at.z, r: Math.min(Math.max(sd, LASTACC * 0.5), 150) / GEO.mpu});
   gpsSay('📍 ' + nd + ' · ±' + Math.round(sd) + 'm', true);
 }
 function boxDist(px, pz, cx, cz, L, D, ang) {   // 기울어진 건물 상자 벽까지 거리 (안이면 0, 지도 칸)
   const a = ang * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), dx = px - cx, dz = pz - cz;
   const u = dx * c + dz * s, v = -dx * s + dz * c;
   return Math.hypot(Math.max(Math.abs(u) - L / 2, 0), Math.max(Math.abs(v) - D / 2, 0));
+}
+function boxIn(px, pz, cx, cz, L, D, ang, pad) {   // 상자 안(벽에서 pad만큼 안쪽)의 가장 가까운 자리
+  const a = ang * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), dx = px - cx, dz = pz - cz;
+  const lim = (t, h) => Math.max(-h, Math.min(h, t));
+  const u = lim(dx * c + dz * s, L / 2 - pad), v = lim(-dx * s + dz * c, D / 2 - pad);
+  return {x: cx + u * c - v * s, z: cz + u * s + v * c};
 }
 function inSite(x, y) {
   let c = false;
