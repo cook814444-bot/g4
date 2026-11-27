@@ -715,9 +715,17 @@ function gpsCalClear() {
 function gpsShow() {
   const sd = Math.sqrt(KF.v);
   M3.me({x: KF.x, z: KF.z, r: Math.min(Math.max(sd, LASTACC * 0.5), 150) / GEO.mpu});
+  // 11-27 사용자 '관리사무소 안인데 402동 근처라고 뜸' → 관리사무소도 후보에 넣고, 중심점 대신 건물 벽까지 거리로 비교
   let nd = '', best = 1e9;
-  for (const d in BLD) { const k = Math.hypot(BLD[d][0] - KF.x, BLD[d][1] - KF.z); if (k < best) { best = k; nd = d; } }
-  gpsSay('📍 ' + nd + '동 근처 · ±' + Math.round(sd) + 'm', true);
+  for (const d in BLD) { const k = boxDist(KF.x, KF.z, BLD[d][0], BLD[d][1], BLD[d][2], TOWER[d] ? 40 : 13, BLD[d][3]); if (k < best) { best = k; nd = d + '동 근처'; } }
+  const ko = boxDist(KF.x, KF.z, OFFICE[0], OFFICE[1], OFFICE[2], 16, OFFICE[3]);
+  if (ko * GEO.mpu <= 5) nd = '관리사무소'; else if (ko <= best) nd = '관리사무소 근처';
+  gpsSay('📍 ' + nd + ' · ±' + Math.round(sd) + 'm', true);
+}
+function boxDist(px, pz, cx, cz, L, D, ang) {   // 기울어진 건물 상자 벽까지 거리 (안이면 0, 지도 칸)
+  const a = ang * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), dx = px - cx, dz = pz - cz;
+  const u = dx * c + dz * s, v = -dx * s + dz * c;
+  return Math.hypot(Math.max(Math.abs(u) - L / 2, 0), Math.max(Math.abs(v) - D / 2, 0));
 }
 function inSite(x, y) {
   let c = false;
